@@ -55,26 +55,27 @@ impl SolrDrv {
         format!("{}://{}:{}/solr/{}", self.protocol, self.host, self.port, s)
     }
 
-    async fn fetch(&self, url: &String) -> Result<serde_json::Value, SolrError> {
+    async fn fetch(&self, path: &String) -> Result<serde_json::Value, SolrError> {
+        let url = self.format_url(path);
         println!("Fetching: {}", url);
-        let res = reqwest::get(url).await?;
+        let res = reqwest::get(&url).await?;
         let text: String = res.text().await?;
         let json: Value = match serde_json::from_str(&text) {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
+        if json.get("error").is_some() {
+            return Err(SolrError);
+        }
         Ok(json)
     }
 
-    pub async fn get_collections(&self) -> Result<Vec<SolrCollection<'_>>, SolrError> {
+    pub async fn list_collections(&self) -> Result<Vec<SolrCollection<'_>>, SolrError> {
         let path = String::from("admin/collections?action=CLUSTERSTATUS");
-        let url = self.format_url(&path);
-        let res = match self.fetch(&url).await {
+        let res = match self.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
-
-        let mut collections: Vec<SolrCollection> = vec![];
 
         let obj = res["cluster"]["collections"].as_object().cloned();
         if obj.is_none() {
@@ -82,12 +83,22 @@ impl SolrDrv {
         }
         let obj = obj.unwrap();
 
+        let mut collections: Vec<SolrCollection> = vec![];
         for c in obj.into_iter() {
             let col = SolrCollection::new(self, String::from(c.0), c.1);
-            collections.push (col);
+            collections.push(col);
         }
-
         Ok(collections)
+    }
+
+    pub async fn get_collection(&self, name: &String) -> Result<SolrCollection<'_>, SolrError> {
+        let path = String::from(format!("admin/collections?action=CLUSTERSTATUS&collection={}", name));
+        let res = match self.fetch(&path).await {
+            Ok(r) => r,
+            Err(_) => return Err(SolrError),
+        };
+        let collection = res["cluster"]["collections"][&name].clone();
+        Ok(SolrCollection::new(self, name.clone(), collection))
     }
 }
 
@@ -106,6 +117,15 @@ impl SolrCollection<'_> {
             serialized,
         }
     }
+
+    pub async fn select(&self, query: &String) -> Result<Vec<Value>, SolrError> {
+        let path = String::from(format!("{}/select?q={}", self.name, query));
+        let res = match self.driver.fetch(&path).await {
+            Ok(r) => r,
+            Err(_) => return Err(SolrError),
+        };
+        Ok(res["response"]["docs"].as_array().unwrap().clone())
+    }
 }
 
 #[tokio::main]
@@ -116,13 +136,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         port: 8983,
     };
 
-    let collections = match drv.get_collections().await {
+    let collections = match drv.list_collections().await {
         Ok(r) => r,
         Err(e) => return Err(e.into()),
     };
 
-    for c in collections {
+    for c in &collections {
         println!("{:?}", c);
+    }
+
+    let entities = match drv.get_collection(&String::from("entities")).await {
+        Ok(r) => r,
+        Err(e) => return Err(e.into()),
+    };
+
+    let documents = match entities.select(&String::from("*:*")).await {
+        Ok(r) => r,
+        Err(e) => return Err(e.into()),
+    };
+
+    for d in &documents {
+        println!("{:?}", d);
     }
 
     Ok(())
