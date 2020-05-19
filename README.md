@@ -1,3 +1,2 @@
-# sorldrv
-
-Solr driver for the Rust language
+# Solrdrv
+> Solr driver for the Rust language
