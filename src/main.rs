@@ -1,11 +1,13 @@
 extern crate reqwest;
 extern crate tokio;
+extern crate serde;
 extern crate serde_json;
 
 use std::fmt;
 use serde_json::Value;
 use std::vec::Vec;
 use std::error::Error;
+use serde::{Serialize, Deserialize};
 
 pub struct SolrError;
 
@@ -150,7 +152,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => return Err(e.into()),
     };
 
-    let documents = match entities.select(&String::from("*:*")).await {
+    let documents = match entities.select(&String::from("*:*&rows=1")).await {
         Ok(r) => r,
         Err(e) => return Err(e.into()),
     };
