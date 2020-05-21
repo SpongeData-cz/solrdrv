@@ -38,18 +38,14 @@ impl From<reqwest::Error> for SolrError {
 
 #[derive(Debug)]
 pub struct SolrDrv {
-    protocol: String,
-    host: String,
-    port: u16,
+    pub protocol: String,
+    pub host: String,
+    pub port: u16,
 }
 
 impl SolrDrv {
     pub fn new(protocol: String, host: String, port: u16) -> SolrDrv {
-        SolrDrv {
-            protocol,
-            host,
-            port,
-        }
+        SolrDrv { protocol, host, port }
     }
 
     fn format_url(&self, s: &String) -> String {
@@ -65,7 +61,10 @@ impl SolrDrv {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
-        if json.get("error").is_some() {
+        let err = json.get("error");
+        if err.is_some() {
+            let err = err.unwrap();
+            println!("{:?}", err);
             return Err(SolrError);
         }
         Ok(json)
@@ -79,55 +78,69 @@ impl SolrDrv {
         }
     }
 
-    pub async fn create_collection(&self, _name: String) {
-    }
-
-    pub async fn list_collections(&self) -> Result<Vec<SolrCollection<'_>>, SolrError> {
-        let path = String::from("admin/collections?action=CLUSTERSTATUS");
+    pub async fn create_collection(&self, name: &String) -> Result<SolrCollection<'_>, SolrError> {
+        let path = String::from(format!(
+            "admin/collections?action=CREATE&name={}&numShards={}&maxShardsPerNode={}&router.field={}",
+            name, 16, 16, "id"));
         let res = match self.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
 
-        let obj = res["cluster"]["collections"].as_object().cloned();
-        if obj.is_none() {
+        if res.get("success").is_none() {
             return Err(SolrError);
         }
-        let obj = obj.unwrap();
+
+        Ok(SolrCollection::new(&self, name.clone()))
+    }
+
+    pub async fn list_collections(&self) -> Result<Vec<SolrCollection<'_>>, SolrError> {
+        let path = String::from("admin/collections?action=LIST");
+        let res = match self.fetch(&path).await {
+            Ok(r) => r,
+            Err(_) => return Err(SolrError),
+        };
+
+        let obj = match res["collections"].as_array().cloned() {
+            Some(o) => o,
+            None => return Err(SolrError),
+        };
 
         let mut collections: Vec<SolrCollection> = vec![];
         for c in obj.into_iter() {
-            let col = SolrCollection::new(self, String::from(c.0), c.1);
+            let name = String::from(c.as_str().unwrap());
+            let col = SolrCollection::new(self, name);
             collections.push(col);
         }
         Ok(collections)
     }
 
     pub async fn get_collection(&self, name: &String) -> Result<SolrCollection<'_>, SolrError> {
-        let path = String::from(format!("admin/collections?action=CLUSTERSTATUS&collection={}", name));
-        let res = match self.fetch(&path).await {
-            Ok(r) => r,
-            Err(_) => return Err(SolrError),
-        };
-        let collection = res["cluster"]["collections"][&name].clone();
-        Ok(SolrCollection::new(self, name.clone(), collection))
+        let path = String::from(format!("admin/collections?action=LIST&collection={}", name));
+        match self.fetch(&path).await {
+            Ok(_) => Ok(SolrCollection::new(self, name.clone())),
+            Err(_) => Err(SolrError),
+        }
+    }
+
+    pub async fn delete_collection(&self, name: &String) -> Result<(), SolrError> {
+        let path = String::from(format!("admin/collections?action=DELETE&name={}", name));
+        match self.fetch(&path).await {
+            Ok(_) => Ok(()),
+            Err(_) => Err(SolrError)
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct SolrCollection<'a> {
-    driver: &'a SolrDrv,
-    name: String,
-    serialized: Value,
+    pub driver: &'a SolrDrv,
+    pub name: String
 }
 
 impl SolrCollection<'_> {
-    pub fn new(driver: &SolrDrv, name: String, serialized: Value) -> SolrCollection {
-        SolrCollection {
-            driver,
-            name,
-            serialized,
-        }
+    pub fn new(driver: &SolrDrv, name: String) -> SolrCollection {
+        SolrCollection { driver, name }
     }
 
     pub async fn select(&self, query: &String) -> Result<Vec<Value>, SolrError> {
