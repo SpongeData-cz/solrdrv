@@ -79,6 +79,7 @@ impl SolrDrv {
     }
 
     pub async fn create_collection(&self, name: &String) -> Result<SolrCollection<'_>, SolrError> {
+        // TODO: Replace hardcoded shard count with configuration API
         let path = String::from(format!(
             "admin/collections?action=CREATE&name={}&numShards={}&maxShardsPerNode={}&router.field={}",
             name, 16, 16, "id"));
