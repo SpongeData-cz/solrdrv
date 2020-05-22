@@ -1,53 +1,48 @@
 extern crate solrdrv;
 
-use solrdrv::tokio;
-use solrdrv::SolrDrv;
+use solrdrv::{
+    serde_json::json,
+    tokio,
+    Solr,
+    Field
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let drv = SolrDrv::new(
-        "http".into(),
-        "localhost".into(),
-        8983);
+    let solr = Solr::client("http".into(), "localhost".into(), 8983);
 
-    // let info = match drv.get_system_info().await {
-    //     Ok(r) => r,
-    //     Err(e) => return Err(e.into()),
-    // };
-    // println!("Info: {:?}", info);
-
-    let collections = match drv.list_collections().await {
-        Ok(r) => r,
-        Err(e) => return Err(e.into()),
+    let _res = match solr.get_collection(&"users".into()).await {
+        Ok(col) => solr.delete_collection(&col.name).await,
+        Err(_) => Ok(())
     };
-    for c in &collections {
-        println!("{:?}", c);
+
+    let mut users = solr.create_collection("users".into())
+        .set_shard_count(16)
+        .add_field(Field::string("name".into()))
+        .add_field(Field::numeric("age".into()))
+        .commit().await?;
+
+    users.add(json!([
+        {
+            "name": "Some",
+            "age": 19
+        },
+        {
+            "name": "Dude",
+            "age": 21
+        }
+    ]));
+
+    if users.get_commit_size() > 0 {
+        users.commit().await?;
     }
 
-    // let entities = match drv.get_collection(&"entities".into()).await {
-    //     Ok(r) => r,
-    //     Err(e) => return Err(e.into()),
-    // };
-    //
-    // let documents = match entities.select(&"*:*&rows=1".into()).await {
-    //     Ok(r) => r,
-    //     Err(e) => return Err(e.into()),
-    // };
-    // for d in &documents {
-    //     println!("{:?}", d);
-    // }
-
-    let test = match drv.create_collection(&"test".into()).await {
-        Ok(r) => r,
-        Err(e) => return Err(e.into()),
-    };
-    println!("Created collection {:?}", test);
-
-    match drv.delete_collection(&test.name).await {
-        Ok(r) => r,
-        Err(e) => return Err(e.into()),
-    };
-    println!("Deleted collection test");
+    let users_found = users.search()
+        .query("(name:Some AND age:19) OR age:21".into())
+        // .from_json(json!(...))
+        .fields("name".into())
+        .commit().await?;
+    println!("{:#?}", users_found);
 
     Ok(())
 }
