@@ -4,7 +4,7 @@ use solrdrv::{
     serde_json::json,
     tokio,
     Solr,
-    Field
+    FieldBuilder
 };
 
 #[tokio::main]
@@ -18,8 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut users = solr.create_collection("users".into())
         .set_shard_count(16)
-        .add_field(Field::string("name".into()))
-        .add_field(Field::numeric("age".into()))
+        .add_field(FieldBuilder::string("name".into()))
+        .add_field(FieldBuilder::numeric("age".into()))
         .commit().await?;
 
     users.add(json!([
