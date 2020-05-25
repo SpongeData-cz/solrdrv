@@ -95,7 +95,7 @@ impl Solr {
 
     pub fn create_collection(&self, name: String) -> CollectionBuilder<'_> {
         let mut builder = CollectionBuilder::new(&self);
-        builder.set_name(name);
+        builder.name(name);
         builder
     }
 
@@ -461,17 +461,17 @@ impl<'a> CollectionBuilder<'a> {
         }
     }
 
-    pub fn set_name(&mut self, name: String) -> &mut Self {
+    pub fn name(&mut self, name: String) -> &mut Self {
         self.name = name;
         self
     }
 
-    pub fn set_shard_count(&mut self, shards: u32) -> &mut Self {
+    pub fn shard_count(&mut self, shards: u32) -> &mut Self {
         self.shard_count = shards;
         self
     }
 
-    pub fn add_field(&mut self, field: serde_json::Value) -> &mut Self {
+    pub fn field(&mut self, field: serde_json::Value) -> &mut Self {
         self.fields.push(field);
         self
     }

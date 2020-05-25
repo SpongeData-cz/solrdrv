@@ -17,9 +17,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let mut users = solr.create_collection("users".into())
-        .set_shard_count(16)
-        .add_field(FieldBuilder::string("name".into()))
-        .add_field(FieldBuilder::numeric("age".into()))
+        .shard_count(16)
+        .field(FieldBuilder::string("name".into()))
+        .field(FieldBuilder::numeric("age".into()))
         .commit().await?;
 
     users.add(json!([
