@@ -514,36 +514,41 @@ impl<'a> CollectionBuilder<'a> {
 #[derive(Debug)]
 pub struct Query<'a, 'b> {
     collection: &'a Collection<'b>,
-    query_str: Option<String>,
-    fields_str: Option<String>,
+    query: Option<String>,
+    fields: Option<String>,
 }
 
 impl<'a, 'b> Query<'a, 'b> {
     fn new(collection: &'b Collection) -> Query<'a, 'b> {
         Query {
             collection: &collection,
-            query_str: None,
-            fields_str: None,
+            query: None,
+            fields: None,
         }
     }
 
     pub fn query(&mut self, query: String) -> &mut Self {
-        self.query_str = Some(query);
+        self.query = Some(query);
         self
     }
 
     pub fn fields(&mut self, fields: String) -> &mut Self {
-        self.fields_str = Some(fields);
+        self.fields = Some(fields);
         self
     }
 
     pub async fn commit(&self) -> Result<Vec<serde_json::Value>, SolrError> {
-        if self.query_str.is_none() {
+        if self.query.is_none() {
             return Err(SolrError);
         }
-        let q = self.query_str.as_ref().unwrap();
+        let q = self.query.as_ref().unwrap();
         let q = self.collection.client.url_encode(q);
-        let path = format!("{}/select?q={}", self.collection.name, q);
+        let mut path = format!("{}/select?q={}", self.collection.name, q);
+        if self.fields.is_some() {
+            let fl = self.fields.as_ref().unwrap();
+            let fl = self.collection.client.url_encode(fl);
+            path = format!("{}&fl={}", path, fl);
+        }
         let res = match self.collection.client.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
