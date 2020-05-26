@@ -226,9 +226,9 @@ impl<'a> Collection<'a> {
 
 #[derive(Debug)]
 pub struct FieldBuilder {
+    // Source: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html
     name: String,
     typename: String,
-    // Source: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html
     stored: bool,
     indexed: bool,
     doc_values: bool,
@@ -250,6 +250,7 @@ pub struct FieldBuilder {
 
 impl FieldBuilder {
     pub fn new(name: String) -> FieldBuilder {
+        // See: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html#field-default-properties
         FieldBuilder {
             name: name,
             typename: "".into(),
@@ -312,150 +313,151 @@ impl FieldBuilder {
         Ok(json)
     }
 
-    pub fn set_type(&mut self, val: String) -> &mut Self {
-        self.typename = val;
+    pub fn typename(&mut self, typename: String) -> &mut Self {
+        self.typename = typename;
         self
     }
 
-    pub fn set_stored(&mut self, val: bool) -> &mut Self {
-        self.stored = val;
+    pub fn stored(&mut self, stored: bool) -> &mut Self {
+        self.stored = stored;
         self
     }
 
-    pub fn set_indexed(&mut self, val: bool) -> &mut Self {
-        self.indexed = val;
+    pub fn indexed(&mut self, indexed: bool) -> &mut Self {
+        self.indexed = indexed;
         self
     }
 
-    pub fn set_doc_values(&mut self, val: bool) -> &mut Self {
-        self.doc_values = val;
+    pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
+        self.doc_values = doc_values;
         self
     }
 
-    pub fn set_sort_missing_first(&mut self, val: bool) -> &mut Self {
-        self.sort_missing_first = val;
+    pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
+        self.sort_missing_first = sort_missing_first;
         self
     }
 
-    pub fn set_sort_missing_last(&mut self, val: bool) -> &mut Self {
-        self.sort_missing_last = val;
+    pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
+        self.sort_missing_last = sort_missing_last;
         self
     }
 
-    pub fn set_multi_valued(&mut self, val: bool) -> &mut Self {
-        self.multi_valued = val;
+    pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
+        self.multi_valued = multi_valued;
         self
     }
 
-    pub fn set_omit_norms(&mut self, val: bool) -> &mut Self {
-        self.omit_norms = Some(val);
+    pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
+        self.omit_norms = Some(omit_norms);
         self
     }
 
-    pub fn set_omit_term_freq_and_positions(&mut self, val: bool) -> &mut Self {
-        self.omit_term_freq_and_positions = Some(val);
+    pub fn omit_term_freq_and_positions(&mut self, omit_term_freq_and_positions: bool) -> &mut Self {
+        self.omit_term_freq_and_positions = Some(omit_term_freq_and_positions);
         self
     }
 
-    pub fn set_omit_positions(&mut self, val: bool) -> &mut Self {
-        self.omit_positions = Some(val);
+    pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
+        self.omit_positions = Some(omit_positions);
         self
     }
 
-    pub fn set_uninvertible(&mut self, val: bool) -> &mut Self {
-        self.uninvertible = val;
+    pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
+        self.uninvertible = uninvertible;
         self
     }
 
-    pub fn set_term_vectors(&mut self, val: bool) -> &mut Self {
-        self.term_vectors = val;
+    pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
+        self.term_vectors = term_vectors;
         self
     }
 
-    pub fn set_term_positions(&mut self, val: bool) -> &mut Self {
-        self.term_positions = val;
+    pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
+        self.term_positions = term_positions;
         self
     }
 
-    pub fn set_term_offsets(&mut self, val: bool) -> &mut Self {
-        self.term_offsets = val;
+    pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
+        self.term_offsets = term_offsets;
         self
     }
 
-    pub fn set_term_payloads(&mut self, val: bool) -> &mut Self {
-        self.term_payloads = val;
+    pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
+        self.term_payloads = term_payloads;
         self
     }
 
-    pub fn set_required(&mut self, val: bool) -> &mut Self {
-        self.required = val;
+    pub fn required(&mut self, required: bool) -> &mut Self {
+        self.required = required;
         self
     }
 
-    pub fn set_use_doc_values_as_stored(&mut self, val: bool) -> &mut Self {
-        self.use_doc_values_as_stored = val;
+    pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
+        self.use_doc_values_as_stored = use_doc_values_as_stored;
         self
     }
 
-    pub fn set_large(&mut self, val: bool) -> &mut Self {
-        self.large = val;
+    pub fn large(&mut self, large: bool) -> &mut Self {
+        self.large = large;
         self
     }
 
     pub fn text(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("lowercase".into())
+            .typename("lowercase".into())
             .build().unwrap()
     }
 
+    // Prebuilt
     pub fn string(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("string".into())
-            .set_omit_norms(true)
+            .typename("string".into())
+            .omit_norms(true)
             .build().unwrap()
     }
 
     pub fn multi_string(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("strings".into())
-            .set_omit_norms(true)
-            .set_multi_valued(true)
+            .typename("strings".into())
+            .omit_norms(true)
+            .multi_valued(true)
             .build().unwrap()
     }
 
     pub fn numeric(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("pfloat".into())
+            .typename("pfloat".into())
             .build().unwrap()
     }
 
     pub fn double(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("pdouble".into())
+            .typename("pdouble".into())
             .build().unwrap()
     }
 
     pub fn long(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("plong".into())
+            .typename("plong".into())
             .build().unwrap()
     }
 
     pub fn fulltext(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("text_general".into())
+            .typename("text_general".into())
             .build().unwrap()
     }
 
     pub fn tag(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("delimited_payloads_string".into())
+            .typename("delimited_payloads_string".into())
             .build().unwrap()
     }
 
     pub fn date(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
-            .set_type("pdate".into())
+            .typename("pdate".into())
             .build().unwrap()
     }
 }
