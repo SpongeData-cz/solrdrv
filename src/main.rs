@@ -40,7 +40,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let users_found = users.search()
         .query("(name:Some AND age:19) OR age:21".into())
         // .from_json(json!(...)) // TODO: Add JSON -> query string method!
-        .fields("name".into())
+        .sort("name asc".into())
+        .fields("name,age".into())
         .commit().await?;
     println!("{:#?}", users_found);
 
