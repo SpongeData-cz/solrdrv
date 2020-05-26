@@ -35,8 +35,11 @@ impl From<reqwest::Error> for SolrError {
 
 #[derive(Debug)]
 pub struct Solr {
+    /// A protocol on which is the Solr API available (e.g. `"http"`, `"https"`).
     pub protocol: String,
+    /// A host name on which is the Solr API available (e.g. `"localhost"`).
     pub host: String,
+    /// A port on which is the Solr API available (e.g. `8983`).
     pub port: u16
 }
 
@@ -219,10 +222,14 @@ impl<'a> CollectionsAPI<'a> {
 }
 
 #[derive(Debug)]
+/// Abstraction of an existing collection.
 pub struct Collection<'a> {
     client: &'a Solr,
+    /// The name of the collection.
     pub name: String,
+    /// Docs enqueued for commit.
     docs_to_commit: Vec<serde_json::Value>,
+    /// Set if an error occurs during docs commit.
     error: Option<SolrError>,
 }
 
@@ -491,13 +498,14 @@ impl FieldBuilder {
         self
     }
 
-    // Prebuilt
+    /// Returns a prebuilt `text` field.
     pub fn text(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("lowercase".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `string` field.
     pub fn string(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("string".into())
@@ -505,6 +513,7 @@ impl FieldBuilder {
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `multi string` field.
     pub fn multi_string(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("strings".into())
@@ -513,36 +522,42 @@ impl FieldBuilder {
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `numeric` field.
     pub fn numeric(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pfloat".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `double` field.
     pub fn double(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pdouble".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `long` field.
     pub fn long(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("plong".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `fulltext` field.
     pub fn fulltext(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("text_general".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `tag` field.
     pub fn tag(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("delimited_payloads_string".into())
             .build().unwrap()
     }
 
+    /// Returns a prebuilt `date` field.
     pub fn date(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pdate".into())
