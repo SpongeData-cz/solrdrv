@@ -37,7 +37,7 @@ impl From<reqwest::Error> for SolrError {
 pub struct Solr {
     pub protocol: String,
     pub host: String,
-    pub port: u16,
+    pub port: u16
 }
 
 impl Solr {
@@ -93,15 +93,32 @@ impl Solr {
         }
     }
 
-    pub fn create_collection(&self, name: String) -> CollectionBuilder<'_> {
-        let mut builder = CollectionBuilder::new(&self);
+    pub fn collections(&self) -> CollectionsAPI {
+        CollectionsAPI::new(&self)
+    }
+}
+
+#[derive(Debug)]
+pub struct CollectionsAPI<'a> {
+    client: &'a Solr
+}
+
+impl<'a> CollectionsAPI<'a> {
+    fn new(client: &'a Solr) -> CollectionsAPI<'a> {
+        CollectionsAPI {
+            client: &client
+        }
+    }
+
+    pub fn create(&self, name: String) -> CollectionBuilder<'a> {
+        let mut builder = CollectionBuilder::new(&self.client);
         builder.name(name);
         builder
     }
 
-    pub async fn list_collections(&self) -> Result<Vec<Collection<'_>>, SolrError> {
+    pub async fn list(&self) -> Result<Vec<Collection<'_>>, SolrError> {
         let path = String::from("admin/collections?action=LIST");
-        let res = match self.fetch(&path).await {
+        let res = match self.client.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
@@ -114,29 +131,29 @@ impl Solr {
         let mut collections: Vec<Collection> = vec![];
         for c in obj.into_iter() {
             let name = String::from(c.as_str().unwrap());
-            let col = Collection::new(self, name);
+            let col = Collection::new(&self.client, name);
             collections.push(col);
         }
         Ok(collections)
     }
 
-    pub async fn get_collection(&self, name: &String) -> Result<Collection<'_>, SolrError> {
+    pub async fn get(&self, name: String) -> Result<Collection<'_>, SolrError> {
         let path = String::from(format!("admin/collections?action=LIST"));
-        let res = match self.fetch(&path).await {
+        let res = match self.client.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
         for c in res["collections"].as_array().unwrap() {
             if c.as_str().unwrap().cmp(name.as_str()) == std::cmp::Ordering::Equal {
-                return Ok(Collection::new(self, name.clone()));
+                return Ok(Collection::new(&self.client, name.clone()));
             }
         }
         Err(SolrError)
     }
 
-    pub async fn delete_collection(&self, name: &String) -> Result<(), SolrError> {
+    pub async fn delete(&self, name: &String) -> Result<(), SolrError> {
         let path = String::from(format!("admin/collections?action=DELETE&name={}", name));
-        match self.fetch(&path).await {
+        match self.client.fetch(&path).await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError)
         }
@@ -446,8 +463,11 @@ impl FieldBuilder {
 #[derive(Debug)]
 pub struct CollectionBuilder<'a> {
     client: &'a Solr,
+    // Source: https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
     name: String,
-    shard_count: u32,
+    num_shards: Option<usize>,
+    max_shards_per_node: Option<usize>,
+    router_field: Option<String>,
     fields: Vec<serde_json::Value>,
 }
 
@@ -456,7 +476,9 @@ impl<'a> CollectionBuilder<'a> {
         CollectionBuilder {
             client: &client,
             name: "".into(),
-            shard_count: 1u32,
+            num_shards: None,
+            max_shards_per_node: None,
+            router_field: None,
             fields: vec![],
         }
     }
@@ -466,8 +488,18 @@ impl<'a> CollectionBuilder<'a> {
         self
     }
 
-    pub fn shard_count(&mut self, shards: u32) -> &mut Self {
-        self.shard_count = shards;
+    pub fn num_shards(&mut self, num_shards: usize) -> &mut Self {
+        self.num_shards = Some(num_shards);
+        self
+    }
+
+    pub fn max_shards_per_node(&mut self, max_shards_per_node: usize) -> &mut Self {
+        self.max_shards_per_node = Some(max_shards_per_node);
+        self
+    }
+
+    pub fn router_field(&mut self, router_field: String) -> &mut Self {
+        self.router_field = Some(router_field);
         self
     }
 
@@ -476,13 +508,34 @@ impl<'a> CollectionBuilder<'a> {
         self
     }
 
+    fn build_path(&self) -> String {
+        let mut path = format!("admin/collections?action=CREATE&name={}", self.name);
+
+        if self.num_shards.is_some() {
+            let temp = self.num_shards.as_ref().unwrap();
+            path = format!("{}&numShards={}", path, temp);
+        }
+
+        if self.max_shards_per_node.is_some() {
+            let temp = self.max_shards_per_node.as_ref().unwrap();
+            path = format!("{}&maxShardsPerNode={}", path, temp);
+        }
+
+        if self.router_field.is_some() {
+            let temp = self.router_field.as_ref().unwrap();
+            let temp = self.client.url_encode(&temp);
+            path = format!("{}&router.field={}", path, temp);
+        }
+
+        path
+    }
+
     pub async fn commit(&mut self) -> Result<Collection<'a>, SolrError> {
-        let path = format!(
-            "admin/collections?action=CREATE&name={}&numShards={}&maxShardsPerNode={}&router.field={}",
-            self.name,
-            self.shard_count,
-            self.shard_count,
-            "id");
+        if self.name.len() == 0 {
+            return Err(SolrError);
+        }
+
+        let path = self.build_path();
 
         let res = match self.client.fetch(&path).await {
             Ok(r) => r,
@@ -494,10 +547,9 @@ impl<'a> CollectionBuilder<'a> {
         }
 
         let col = Collection::new(&self.client, self.name.clone());
-
         let path = format!("{}/schema", self.name);
 
-        // TODO: Check if scheme was created!
+        // TODO: Check if the scheme was created!
         let _res = match reqwest::Client::new().post(&self.client.format_url(&path))
             .json(&json!({
                 "add-field": &self.fields

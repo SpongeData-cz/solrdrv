@@ -11,13 +11,16 @@ use solrdrv::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let solr = Solr::client("http".into(), "localhost".into(), 8983);
 
-    let _res = match solr.get_collection(&"users".into()).await {
-        Ok(col) => solr.delete_collection(&col.name).await,
+    let _res = match solr.collections().get("users".into()).await {
+        Ok(col) => solr.collections().delete(&col.name).await,
         Err(_) => Ok(())
     };
 
-    let mut users = solr.create_collection("users".into())
-        .shard_count(16)
+    let mut users = solr.collections()
+        .create("users".into())
+        .router_field("id".into())
+        .num_shards(16)
+        .max_shards_per_node(16)
         .field(FieldBuilder::string("name".into()))
         .field(FieldBuilder::numeric("age".into()))
         .commit().await?;
