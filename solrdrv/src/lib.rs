@@ -17,7 +17,7 @@ impl std::error::Error for SolrError {}
 
 impl fmt::Display for SolrError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "An Error Occurred, Please Try Again!")
+        write!(f, "An error occurred!")
     }
 }
 
@@ -41,16 +41,38 @@ pub struct Solr {
 }
 
 impl Solr {
+    /// Creates a new client for a specific Solr database.
+    ///
+    /// # Arguments
+    /// * `protocol` -
+    /// * `host` -
+    /// * `port` -
+    ///
+    /// # Example
+    /// ```
+    /// let client = Solr.client("http".into(), "localhost".into(), 8983);
+    /// ```
     pub fn client(protocol: String, host: String, port: u16) -> Solr {
         Solr { protocol, host, port }
     }
 
+    /// Percentage-encodes unsafe characters of a URL parameter value.
+    ///
+    /// # Arguments
+    /// * `string` - The string to encode.
+    ///
+    /// # Example
+    /// ```
+    /// client.url_encode(&"date: [2020-05-26 TO *]".into());
+    /// // => date%3A%20%5B2020-05-26%20TO%20%2A%5D
+    /// ```
+    ///
     /// # Source
     /// https://rosettacode.org/wiki/URL_encoding#Rust
-    fn url_encode(&self, s: &String) -> String {
+    fn url_encode(&self, string: &String) -> String {
         let mut buff = [0; 4];
 
-        s.chars()
+        string.chars()
             .map(|ch| {
                 match ch as u32 {
                     0..=47 | 58..=64 | 91..=96 | 123..=MAX_CHAR_VAL => {
@@ -63,10 +85,31 @@ impl Solr {
             .collect::<String>()
     }
 
-    fn format_url(&self, s: &String) -> String {
-        format!("{}://{}:{}/solr/{}", self.protocol, self.host, self.port, s)
+    /// Creates a string using format "{protocol}://{host}:{port}/{path}".
+    ///
+    /// # Arguments
+    /// * `path` -
+    fn format_url(&self, path: &String) -> String {
+        format!("{}://{}:{}/solr/{}", self.protocol, self.host, self.port, path)
     }
 
+    /// Fetches a result of a GET request for the specified path.
+    ///
+    /// # Arguments
+    /// * `path` -
+    ///
+    /// # Example
+    /// ```
+    /// let res = match self.fetch(&"admin/collections?action=LIST".into()).await {
+    ///     Ok(r) => r,
+    ///     Err(_) => return Err(SolrError),
+    /// };
+    ///
+    /// ```
+    ///
+    /// # Return
+    /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
+    /// otherwise returns the fetched result.
     async fn fetch(&self, path: &String) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
         println!("Fetching: {}", url);
@@ -93,6 +136,7 @@ impl Solr {
         }
     }
 
+    /// Returns a `CollectionAPI` struct, which can be used to create and manage collections.
     pub fn collections(&self) -> CollectionsAPI {
         CollectionsAPI::new(&self)
     }
@@ -110,12 +154,18 @@ impl<'a> CollectionsAPI<'a> {
         }
     }
 
+    /// Returns a `CollectionBuilder` structure using which you can define and create new
+    /// collections.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the collection.
     pub fn create(&self, name: String) -> CollectionBuilder<'a> {
         let mut builder = CollectionBuilder::new(&self.client);
         builder.name(name);
         builder
     }
 
+    /// Returns a list of existing collections.
     pub async fn list(&self) -> Result<Vec<Collection<'_>>, SolrError> {
         let path = String::from("admin/collections?action=LIST");
         let res = match self.client.fetch(&path).await {
@@ -137,6 +187,10 @@ impl<'a> CollectionsAPI<'a> {
         Ok(collections)
     }
 
+    /// Returns an already existing collection with specified name.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the collection to retrieve.
     pub async fn get(&self, name: String) -> Result<Collection<'_>, SolrError> {
         let path = String::from(format!("admin/collections?action=LIST"));
         let res = match self.client.fetch(&path).await {
@@ -151,6 +205,10 @@ impl<'a> CollectionsAPI<'a> {
         Err(SolrError)
     }
 
+    /// Deletes an existing collection with specified name.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the collection to delete.
     pub async fn delete(&self, name: &String) -> Result<(), SolrError> {
         let path = String::from(format!("admin/collections?action=DELETE&name={}", name));
         match self.client.fetch(&path).await {
@@ -178,10 +236,30 @@ impl<'a> Collection<'a> {
         }
     }
 
+    /// Returns a `Query` struct which is used to search for documents within a collection.
     pub fn search(&self) -> Query<'a, '_> {
         Query::new(&self)
     }
 
+    /// Enqueues a document to be added into a collection. Use `commit` to actually send the enqueued
+    /// documents.
+    ///
+    /// # Arguments
+    /// * `document` - Can be either an object for single document or an array of objects for
+    /// multiple documents.
+    ///
+    /// # Example
+    /// ```
+    /// users.add(json!({ "name": "Some", "age": 19 }))
+    ///     .add(json!({ "name": "Dude", "age": 21 }));
+    ///
+    /// // ^ is the same as:
+    ///
+    /// users.add(json!([
+    ///     { "name": "Some", "age": 19 },
+    ///     { "name": "Dude", "age": 21 }
+    /// ]));
+    /// ```
     pub fn add(&mut self, document: serde_json::Value) -> &mut Self {
         if document.is_array() {
             for doc in document.as_array().unwrap().clone() {
@@ -197,10 +275,20 @@ impl<'a> Collection<'a> {
         self
     }
 
+    /// Return a number of document enqueued for adding into a collection.
     pub fn get_commit_size(&self) -> usize {
         self.docs_to_commit.len()
     }
 
+    /// Sends enqueued documents into a collection.
+    ///
+    /// # Example
+    /// ```
+    /// let added = match users.add(json!({ "name": "Some" })).commit().await {
+    ///     Ok(_) => true,
+    ///     Err(_) => false,
+    /// };
+    /// ```
     pub async fn commit(&mut self) -> Result<(), SolrError> {
         if self.error.is_some() {
             let error = std::mem::replace(&mut self.error, None).unwrap();
@@ -403,13 +491,13 @@ impl FieldBuilder {
         self
     }
 
+    // Prebuilt
     pub fn text(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("lowercase".into())
             .build().unwrap()
     }
 
-    // Prebuilt
     pub fn string(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("string".into())
