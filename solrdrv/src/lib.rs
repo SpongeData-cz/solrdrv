@@ -35,9 +35,9 @@ impl From<reqwest::Error> for SolrError {
 
 #[derive(Debug)]
 pub struct Solr {
-    /// A protocol on which is the Solr API available (e.g. `"http"`, `"https"`).
+    /// A protocol on which is the Solr API available (e.g. `http`, `https`).
     pub protocol: String,
-    /// A host name on which is the Solr API available (e.g. `"localhost"`).
+    /// A host name on which is the Solr API available (e.g. `localhost`).
     pub host: String,
     /// A port on which is the Solr API available (e.g. `8983`).
     pub port: u16,
@@ -320,7 +320,7 @@ impl<'a> Collection<'a> {
         self
     }
 
-    /// Return a number of document enqueued for adding into a collection.
+    /// Return a number of documents enqueued for adding into a collection.
     pub fn get_commit_size(&self) -> usize {
         self.docs_to_commit.len()
     }
@@ -329,10 +329,7 @@ impl<'a> Collection<'a> {
     ///
     /// # Example
     /// ```
-    /// let added = match users.add(json!({ "name": "Some" })).commit().await {
-    ///     Ok(_) => true,
-    ///     Err(_) => false,
-    /// };
+    /// users.add(json!({"name": "Some" })).commit().await?;
     /// ```
     pub async fn commit(&mut self) -> Result<(), SolrError> {
         if self.error.is_some() {
@@ -699,6 +696,31 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
         }
     }
 
+    /// Retrieves a schema of a collection.
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#retrieve-schema-information
+    pub async fn get(&self) -> Result<serde_json::Value, SolrError> {
+        let path = format!("{}/schema", self.collection.name);
+        self.collection.client.get(&path).await
+    }
+
+    /// Enqueues a command to add a new field to a collection. Use `commit` to actually execute all
+    /// enqueued commands.
+    ///
+    /// # Arguments
+    /// * `field` - The new field to be added.
+    ///
+    /// # Example
+    /// Following example adds fields `name` and `age` into a collection `users` and commits the
+    /// changes.
+    /// ```
+    /// users.schema()
+    ///     .add_field(FieldBuilder::string("name".into()))
+    ///     .add_field(FieldBuilder::numeric("age".into()))
+    ///     .commit().await?;
+    /// ```
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/schema-api.html
     pub fn add_field(&mut self, field: serde_json::Value) -> &mut Self {
@@ -706,6 +728,12 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
         self
     }
 
+    /// Enqueues a command to delete an existing field from a collection scheme. Use `commit`
+    /// to actually execute all enqueued commands.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the field to delete.
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#delete-a-field
     pub fn delete_field(&mut self, name: String) -> &mut Self {
@@ -713,6 +741,12 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
         self
     }
 
+    /// Enqueues a command to replace a definition of an already existing field. Use `commit`
+    /// to actually execute all enqueued commands.
+    ///
+    /// # Arguments
+    /// * `field` - The new field definition.
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#replace-a-field
     pub fn replace_field(&mut self, field: serde_json::Value) -> &mut Self {
@@ -720,6 +754,17 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
         self
     }
 
+    /// Commits all enqueued commands.
+    ///
+    /// # Example
+    /// Following code adds a field `name` into a collection `users`, removes its field `age` and
+    /// commits the changes.
+    /// ```
+    /// users.scheme()
+    ///     .add_field(FieldBuilder::string("name".into()))
+    ///     .delete_field("age".into())
+    ///     .commit().await?;
+    /// ```
     pub async fn commit(&mut self) -> Result<(), SolrError> {
         if self.fields_to_add.is_empty()
             && self.fields_to_delete.is_empty()
