@@ -11,9 +11,13 @@ use solrdrv::{
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let solr = Solr::client("http".into(), "localhost".into(), 8983);
 
-    let _res = match solr.collections().get("users".into()).await {
-        Ok(col) => solr.collections().delete(&col.name).await,
-        Err(_) => Ok(())
+    match solr.collections().get("users".into()).await {
+        Ok(col) => {
+            let schema = col.schema().get().await?;
+            println!("Schema: {:?}", schema);
+            solr.collections().delete(&col.name).await?;
+        },
+        Err(_) => {}
     };
 
     let mut users = solr.collections()
