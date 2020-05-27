@@ -44,7 +44,7 @@ pub struct Solr {
 }
 
 impl Solr {
-    /// Creates a new client for a specific Solr database.
+    /// Creates a new client for a Solr database.
     ///
     /// # Arguments
     /// * `protocol` -
