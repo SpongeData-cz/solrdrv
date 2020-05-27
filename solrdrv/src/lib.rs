@@ -3,9 +3,9 @@ pub use serde;
 pub use serde_json;
 
 use std::fmt;
-use serde_json::Value;
-use serde_json::json;
 use std::vec::Vec;
+use serde_json::json;
+use serde_json::Value;
 // use serde::{Serialize, Deserialize};
 
 const MAX_CHAR_VAL: u32 = std::char::MAX as u32;
@@ -40,7 +40,7 @@ pub struct Solr {
     /// A host name on which is the Solr API available (e.g. `"localhost"`).
     pub host: String,
     /// A port on which is the Solr API available (e.g. `8983`).
-    pub port: u16
+    pub port: u16,
 }
 
 impl Solr {
@@ -72,7 +72,7 @@ impl Solr {
     ///
     /// # Source
     /// https://rosettacode.org/wiki/URL_encoding#Rust
-    fn url_encode(&self, string: &String) -> String {
+    pub fn url_encode(&self, string: &String) -> String {
         let mut buff = [0; 4];
 
         string.chars()
@@ -92,31 +92,11 @@ impl Solr {
     ///
     /// # Arguments
     /// * `path` -
-    fn format_url(&self, path: &String) -> String {
+    pub fn format_url(&self, path: &String) -> String {
         format!("{}://{}:{}/solr/{}", self.protocol, self.host, self.port, path)
     }
 
-    /// Fetches a result of a GET request for the specified path.
-    ///
-    /// # Arguments
-    /// * `path` -
-    ///
-    /// # Example
-    /// ```
-    /// let res = match self.fetch(&"admin/collections?action=LIST".into()).await {
-    ///     Ok(r) => r,
-    ///     Err(_) => return Err(SolrError),
-    /// };
-    ///
-    /// ```
-    ///
-    /// # Return
-    /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
-    /// otherwise returns the fetched result.
-    async fn fetch(&self, path: &String) -> Result<serde_json::Value, SolrError> {
-        let url = self.format_url(path);
-        println!("Fetching: {}", url);
-        let res = reqwest::get(&url).await?;
+    async fn parse_fetch_result(&self, res: reqwest::Response) -> Result<serde_json::Value, SolrError> {
         let text: String = res.text().await?;
         let json: Value = match serde_json::from_str(&text) {
             Ok(r) => r,
@@ -131,11 +111,64 @@ impl Solr {
         Ok(json)
     }
 
+    /// Fetches a result of a GET request for the specified path.
+    ///
+    /// # Arguments
+    /// * `path` -
+    ///
+    /// # Example
+    /// ```
+    /// let res = match client.get(&"admin/collections?action=LIST".into()).await {
+    ///     Ok(r) => r,
+    ///     Err(e) => return e,
+    /// };
+    ///
+    /// ```
+    ///
+    /// # Return
+    /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
+    /// otherwise returns the fetched result.
+    pub async fn get(&self, path: &String) -> Result<serde_json::Value, SolrError> {
+        let url = self.format_url(path);
+        println!("GET: {}", url);
+        let res = reqwest::get(&url).await?;
+        self.parse_fetch_result(res).await
+    }
+
+    /// Fetches a result of a POST request for the specified path.
+    ///
+    /// # Arguments
+    /// * `path` -
+    /// * `data` -
+    ///
+    /// # Example
+    /// ```
+    /// let data = json!({ "add-field": {
+    ///     "name": "birthday",
+    ///     "type": "pdate",
+    ///     "stored": true } });
+    /// let res = match client.post(&"users/schema".into(), &data).await {
+    ///     Ok(r) => r,
+    ///     Err(e) => return e,
+    /// };
+    /// ```
+    ///
+    /// # Return
+    /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
+    /// otherwise returns the fetched result.
+    pub async fn post(&self, path: &String, data: &serde_json::Value) -> Result<serde_json::Value, SolrError> {
+        let url = self.format_url(path);
+        println!("POST: {}", url);
+        let client = reqwest::Client::new();
+        let res = client.post(&self.format_url(&path)).json(&data).send().await?;
+        self.parse_fetch_result(res).await
+    }
+
     pub async fn get_system_info(&self) -> Result<serde_json::Value, SolrError> {
         let path = String::from("admin/info/system?wt=json");
-        match self.fetch(&path).await {
+        match self.get(&path).await {
             Ok(r) => Ok(r),
-            Err(_) => return Err(SolrError),
+            Err(_) => Err(SolrError),
         }
     }
 
@@ -171,7 +204,7 @@ impl<'a> CollectionsAPI<'a> {
     /// Returns a list of existing collections.
     pub async fn list(&self) -> Result<Vec<Collection<'_>>, SolrError> {
         let path = String::from("admin/collections?action=LIST");
-        let res = match self.client.fetch(&path).await {
+        let res = match self.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
@@ -196,7 +229,7 @@ impl<'a> CollectionsAPI<'a> {
     /// * `name` - The name of the collection to retrieve.
     pub async fn get(&self, name: String) -> Result<Collection<'_>, SolrError> {
         let path = String::from(format!("admin/collections?action=LIST"));
-        let res = match self.client.fetch(&path).await {
+        let res = match self.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
@@ -214,7 +247,7 @@ impl<'a> CollectionsAPI<'a> {
     /// * `name` - The name of the collection to delete.
     pub async fn delete(&self, name: &String) -> Result<(), SolrError> {
         let path = String::from(format!("admin/collections?action=DELETE&name={}", name));
-        match self.client.fetch(&path).await {
+        match self.client.get(&path).await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError)
         }
@@ -307,15 +340,13 @@ impl<'a> Collection<'a> {
             return Err(error);
         }
 
-        if self.docs_to_commit.len() == 0 {
+        if self.docs_to_commit.is_empty() {
             println!("Info: No documents to commit, skipping...");
             return Ok(());
         }
 
         let path = format!("{}/update?commit=true", self.name);
-        let res = match reqwest::Client::new().post(&self.client.format_url(&path))
-            .json(&self.docs_to_commit)
-            .send().await {
+        let res = match self.client.post(&path, &json!(self.docs_to_commit)).await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError),
         };
@@ -375,7 +406,7 @@ impl FieldBuilder {
     }
 
     pub fn build(&self) -> Result<serde_json::Value, SolrError> {
-        if self.typename.len() == 0 {
+        if self.typename.is_empty() {
             return Err(SolrError);
         }
 
@@ -587,7 +618,7 @@ impl<'a> CollectionBuilder<'a> {
             name: "".into(),
             num_shards: None,
             max_shards_per_node: None,
-            router_field: None
+            router_field: None,
         }
     }
 
@@ -634,11 +665,11 @@ impl<'a> CollectionBuilder<'a> {
     }
 
     pub async fn commit(&mut self) -> Result<Collection<'a>, SolrError> {
-        if self.name.len() == 0 {
+        if self.name.is_empty() {
             return Err(SolrError);
         }
         let path = self.build_path();
-        let res = match self.client.fetch(&path).await {
+        let res = match self.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
@@ -653,36 +684,69 @@ impl<'a> CollectionBuilder<'a> {
 #[derive(Debug)]
 pub struct SchemaAPI<'a, 'b> {
     collection: &'a Collection<'b>,
-    fields_to_add: Vec<serde_json::Value>
+    fields_to_add: Vec<serde_json::Value>,
+    fields_to_delete: Vec<String>,
+    fields_to_replace: Vec<serde_json::Value>,
 }
 
 impl<'a, 'b> SchemaAPI<'a, 'b> {
     fn new(collection: &'a Collection<'b>) -> SchemaAPI<'a, 'b> {
         SchemaAPI {
             collection: &collection,
-            fields_to_add: vec![]
+            fields_to_add: vec![],
+            fields_to_delete: vec![],
+            fields_to_replace: vec![],
         }
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/schema-api.html
     pub fn add_field(&mut self, field: serde_json::Value) -> &mut Self {
         self.fields_to_add.push(field);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#delete-a-field
+    pub fn delete_field(&mut self, name: String) -> &mut Self {
+        self.fields_to_delete.push(name);
+        self
+    }
+
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#replace-a-field
+    pub fn replace_field(&mut self, field: serde_json::Value) -> &mut Self {
+        self.fields_to_replace.push(field);
+        self
+    }
+
     pub async fn commit(&mut self) -> Result<(), SolrError> {
+        if self.fields_to_add.is_empty()
+            && self.fields_to_delete.is_empty()
+            && self.fields_to_replace.is_empty() {
+            println!("Info: No schema changes to commit, skipping...");
+            return Ok(());
+        }
+
+        let path = format!("{}/schema", self.collection.name);
         let mut data = json!({});
 
         if !self.fields_to_add.is_empty() {
             data["add-field"] = json!(self.fields_to_add);
+            self.fields_to_add.clear();
         }
 
-        println!("{:?}", data);
+        if !self.fields_to_delete.is_empty() {
+            data["delete-field"] = json!(self.fields_to_delete);
+            self.fields_to_add.clear();
+        }
 
-        let path = format!("{}/schema", self.collection.name);
+        if !self.fields_to_replace.is_empty() {
+            data["replace-field"] = json!(self.fields_to_replace);
+            self.fields_to_add.clear();
+        }
 
-        match reqwest::Client::new().post(&self.collection.client.format_url(&path))
-            .json(&data)
-            .send().await {
+        match self.collection.client.post(&path, &data).await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError),
         }
@@ -708,7 +772,7 @@ pub struct Query<'a, 'b> {
     wt: Option<String>,
     cache: Option<bool>,
     log_params_list: Option<String>,
-    echo_params: Option<String>
+    echo_params: Option<String>,
 }
 
 impl<'a, 'b> Query<'a, 'b> {
@@ -730,7 +794,7 @@ impl<'a, 'b> Query<'a, 'b> {
             wt: None,
             cache: None,
             log_params_list: None,
-            echo_params: None
+            echo_params: None,
         }
     }
 
@@ -943,7 +1007,7 @@ impl<'a, 'b> Query<'a, 'b> {
             return Err(SolrError);
         }
         let path = self.build_path();
-        let res = match self.collection.client.fetch(&path).await {
+        let res = match self.collection.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
