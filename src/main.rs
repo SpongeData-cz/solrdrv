@@ -21,8 +21,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .router_field("id".into())
         .num_shards(16)
         .max_shards_per_node(16)
-        .field(FieldBuilder::string("name".into()))
-        .field(FieldBuilder::numeric("age".into()))
+        .commit().await?;
+
+    users.schema()
+        .add_field(FieldBuilder::string("name".into()))
+        .add_field(FieldBuilder::numeric("age".into()))
         .commit().await?;
 
     users.add(json!([

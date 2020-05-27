@@ -243,6 +243,11 @@ impl<'a> Collection<'a> {
         }
     }
 
+    /// Returns a `SchemaAPI` struct which is used to modify schema of a collection.
+    pub fn schema(&self) -> SchemaAPI<'a, '_> {
+        SchemaAPI::new(&self)
+    }
+
     /// Returns a `Query` struct which is used to search for documents within a collection.
     pub fn search(&self) -> Query<'a, '_> {
         Query::new(&self)
@@ -573,7 +578,6 @@ pub struct CollectionBuilder<'a> {
     num_shards: Option<usize>,
     max_shards_per_node: Option<usize>,
     router_field: Option<String>,
-    fields: Vec<serde_json::Value>,
 }
 
 impl<'a> CollectionBuilder<'a> {
@@ -583,8 +587,7 @@ impl<'a> CollectionBuilder<'a> {
             name: "".into(),
             num_shards: None,
             max_shards_per_node: None,
-            router_field: None,
-            fields: vec![],
+            router_field: None
         }
     }
 
@@ -605,11 +608,6 @@ impl<'a> CollectionBuilder<'a> {
 
     pub fn router_field(&mut self, router_field: String) -> &mut Self {
         self.router_field = Some(router_field);
-        self
-    }
-
-    pub fn field(&mut self, field: serde_json::Value) -> &mut Self {
-        self.fields.push(field);
         self
     }
 
@@ -639,32 +637,55 @@ impl<'a> CollectionBuilder<'a> {
         if self.name.len() == 0 {
             return Err(SolrError);
         }
-
         let path = self.build_path();
-
         let res = match self.client.fetch(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
         };
-
         if res.get("success").is_none() {
             return Err(SolrError);
         }
-
         let col = Collection::new(&self.client, self.name.clone());
-        let path = format!("{}/schema", self.name);
+        Ok(col)
+    }
+}
 
-        // TODO: Check if the scheme was created!
-        let _res = match reqwest::Client::new().post(&self.client.format_url(&path))
-            .json(&json!({
-                "add-field": &self.fields
-            }))
+#[derive(Debug)]
+pub struct SchemaAPI<'a, 'b> {
+    collection: &'a Collection<'b>,
+    fields_to_add: Vec<serde_json::Value>
+}
+
+impl<'a, 'b> SchemaAPI<'a, 'b> {
+    fn new(collection: &'a Collection<'b>) -> SchemaAPI<'a, 'b> {
+        SchemaAPI {
+            collection: &collection,
+            fields_to_add: vec![]
+        }
+    }
+
+    pub fn add_field(&mut self, field: serde_json::Value) -> &mut Self {
+        self.fields_to_add.push(field);
+        self
+    }
+
+    pub async fn commit(&mut self) -> Result<(), SolrError> {
+        let mut data = json!({});
+
+        if !self.fields_to_add.is_empty() {
+            data["add-field"] = json!(self.fields_to_add);
+        }
+
+        println!("{:?}", data);
+
+        let path = format!("{}/schema", self.collection.name);
+
+        match reqwest::Client::new().post(&self.collection.client.format_url(&path))
+            .json(&data)
             .send().await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError),
-        };
-
-        Ok(col)
+        }
     }
 }
 
