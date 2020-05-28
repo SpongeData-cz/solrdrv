@@ -357,48 +357,47 @@ pub struct FieldBuilder {
     // Source: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html
     name: String,
     typename: String,
-    stored: bool,
-    indexed: bool,
-    doc_values: bool,
-    sort_missing_first: bool,
-    sort_missing_last: bool,
-    multi_valued: bool,
+    stored: Option<bool>,
+    indexed: Option<bool>,
+    doc_values: Option<bool>,
+    sort_missing_first: Option<bool>,
+    sort_missing_last: Option<bool>,
+    multi_valued: Option<bool>,
     omit_norms: Option<bool>,
     omit_term_freq_and_positions: Option<bool>,
     omit_positions: Option<bool>,
-    uninvertible: bool,
-    term_vectors: bool,
-    term_positions: bool,
-    term_offsets: bool,
-    term_payloads: bool,
-    required: bool,
-    use_doc_values_as_stored: bool,
-    large: bool,
+    uninvertible: Option<bool>,
+    term_vectors: Option<bool>,
+    term_positions: Option<bool>,
+    term_offsets: Option<bool>,
+    term_payloads: Option<bool>,
+    required: Option<bool>,
+    use_doc_values_as_stored: Option<bool>,
+    large: Option<bool>
 }
 
 impl FieldBuilder {
     pub fn new(name: String) -> FieldBuilder {
-        // See: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html#field-default-properties
         FieldBuilder {
             name: name,
             typename: "".into(),
-            stored: true,
-            indexed: true,
-            doc_values: true,
-            sort_missing_first: false,
-            sort_missing_last: false,
-            multi_valued: false,
+            stored: None,
+            indexed: None,
+            doc_values: None,
+            sort_missing_first: None,
+            sort_missing_last: None,
+            multi_valued: None,
             omit_norms: None,
             omit_term_freq_and_positions: None,
             omit_positions: None,
-            uninvertible: true,
-            term_vectors: false,
-            term_positions: false,
-            term_offsets: false,
-            term_payloads: false,
-            required: false,
-            use_doc_values_as_stored: true,
-            large: false,
+            uninvertible: None,
+            term_vectors: None,
+            term_positions: None,
+            term_offsets: None,
+            term_payloads: None,
+            required: None,
+            use_doc_values_as_stored: None,
+            large: None
         }
     }
 
@@ -409,22 +408,32 @@ impl FieldBuilder {
 
         let mut json = json!({
             "name": self.name,
-            "type": self.typename,
-            "stored": self.stored,
-            "indexed": self.indexed,
-            "docValues": self.doc_values,
-            "sortMissingFirst": self.sort_missing_first,
-            "sortMissingLast": self.sort_missing_last,
-            "multiValued": self.multi_valued,
-            "uninvertible": self.uninvertible,
-            "termVectors": self.term_vectors,
-            "termPositions": self.term_positions,
-            "termOffsets": self.term_offsets,
-            "termPayloads": self.term_payloads,
-            "required": self.required,
-            "useDocValuesAsStored": self.use_doc_values_as_stored,
-            "large": self.large
+            "type": self.typename
         });
+
+        if self.stored.is_some() {
+            json["stored"] = json!(self.stored);
+        }
+
+        if self.indexed.is_some() {
+            json["indexed"] = json!(self.indexed);
+        }
+
+        if self.doc_values.is_some() {
+            json["docValues"] = json!(self.doc_values);
+        }
+
+        if self.sort_missing_first.is_some() {
+            json["sortMissingFirst"] = json!(self.sort_missing_first);
+        }
+
+        if self.sort_missing_last.is_some() {
+            json["sortMissingLast"] = json!(self.sort_missing_last);
+        }
+
+        if self.multi_valued.is_some() {
+            json["multiValued"] = json!(self.multi_valued);
+        }
 
         if self.omit_norms.is_some() {
             json["omitNorms"] = serde_json::Value::Bool(self.omit_norms.unwrap());
@@ -438,6 +447,38 @@ impl FieldBuilder {
             json["omitPositions"] = serde_json::Value::Bool(self.omit_positions.unwrap());
         }
 
+        if self.uninvertible.is_some() {
+            json["uninvertible"] = json!(self.uninvertible);
+        }
+
+        if self.term_vectors.is_some() {
+            json["termVectors"] = json!(self.term_vectors);
+        }
+
+        if self.term_positions.is_some() {
+            json["termPositions"] = json!(self.term_positions);
+        }
+
+        if self.term_offsets.is_some() {
+            json["termOffsets"] = json!(self.term_offsets);
+        }
+
+        if self.term_payloads.is_some() {
+            json["termPayloads"] = json!(self.term_payloads);
+        }
+
+        if self.required.is_some() {
+            json["required"] = json!(self.required);
+        }
+
+        if self.use_doc_values_as_stored.is_some() {
+            json["useDocValuesAsStored"] = json!(self.use_doc_values_as_stored);
+        }
+
+        if self.large.is_some() {
+            json["large"] = json!(self.large);
+        }
+
         Ok(json)
     }
 
@@ -447,32 +488,32 @@ impl FieldBuilder {
     }
 
     pub fn stored(&mut self, stored: bool) -> &mut Self {
-        self.stored = stored;
+        self.stored = Some(stored);
         self
     }
 
     pub fn indexed(&mut self, indexed: bool) -> &mut Self {
-        self.indexed = indexed;
+        self.indexed = Some(indexed);
         self
     }
 
     pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
-        self.doc_values = doc_values;
+        self.doc_values = Some(doc_values);
         self
     }
 
     pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
-        self.sort_missing_first = sort_missing_first;
+        self.sort_missing_first = Some(sort_missing_first);
         self
     }
 
     pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
-        self.sort_missing_last = sort_missing_last;
+        self.sort_missing_last = Some(sort_missing_last);
         self
     }
 
     pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
-        self.multi_valued = multi_valued;
+        self.multi_valued = Some(multi_valued);
         self
     }
 
@@ -492,42 +533,42 @@ impl FieldBuilder {
     }
 
     pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
-        self.uninvertible = uninvertible;
+        self.uninvertible = Some(uninvertible);
         self
     }
 
     pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
-        self.term_vectors = term_vectors;
+        self.term_vectors = Some(term_vectors);
         self
     }
 
     pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
-        self.term_positions = term_positions;
+        self.term_positions = Some(term_positions);
         self
     }
 
     pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
-        self.term_offsets = term_offsets;
+        self.term_offsets = Some(term_offsets);
         self
     }
 
     pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
-        self.term_payloads = term_payloads;
+        self.term_payloads = Some(term_payloads);
         self
     }
 
     pub fn required(&mut self, required: bool) -> &mut Self {
-        self.required = required;
+        self.required = Some(required);
         self
     }
 
     pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
-        self.use_doc_values_as_stored = use_doc_values_as_stored;
+        self.use_doc_values_as_stored = Some(use_doc_values_as_stored);
         self
     }
 
     pub fn large(&mut self, large: bool) -> &mut Self {
-        self.large = large;
+        self.large = Some(large);
         self
     }
 
@@ -535,6 +576,7 @@ impl FieldBuilder {
     pub fn text(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("lowercase".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -543,6 +585,7 @@ impl FieldBuilder {
         FieldBuilder::new(name)
             .typename("string".into())
             .omit_norms(true)
+            .stored(true)
             .build().unwrap()
     }
 
@@ -552,6 +595,7 @@ impl FieldBuilder {
             .typename("strings".into())
             .omit_norms(true)
             .multi_valued(true)
+            .stored(true)
             .build().unwrap()
     }
 
@@ -559,6 +603,7 @@ impl FieldBuilder {
     pub fn numeric(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pfloat".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -566,6 +611,7 @@ impl FieldBuilder {
     pub fn double(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pdouble".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -573,6 +619,7 @@ impl FieldBuilder {
     pub fn long(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("plong".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -580,6 +627,7 @@ impl FieldBuilder {
     pub fn fulltext(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("text_general".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -587,6 +635,7 @@ impl FieldBuilder {
     pub fn tag(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("delimited_payloads_string".into())
+            .stored(true)
             .build().unwrap()
     }
 
@@ -594,6 +643,7 @@ impl FieldBuilder {
     pub fn date(name: String) -> serde_json::Value {
         FieldBuilder::new(name)
             .typename("pdate".into())
+            .stored(true)
             .build().unwrap()
     }
 }
