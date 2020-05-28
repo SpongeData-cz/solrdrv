@@ -8,6 +8,7 @@ use std::fmt;
 use std::vec::Vec;
 use serde_json::json;
 use serde_json::Value;
+use std::collections::HashMap;
 // use serde::{Serialize, Deserialize};
 
 const MAX_CHAR_VAL: u32 = std::char::MAX as u32;
@@ -201,7 +202,7 @@ impl<'a> CollectionsAPI<'a> {
     /// # Arguments
     /// * `name` - The name of the collection.
     pub fn create(&self, name: String) -> CollectionBuilder<'a> {
-        CollectionBuilder::new(&self.client, name);
+        CollectionBuilder::new(&self.client, name)
     }
 
     /// Returns a list of existing collections.
@@ -467,28 +468,7 @@ impl<'a> CollectionBuilder<'a> {
 #[derive(Debug)]
 /// A builder for schema fields
 pub struct FieldBuilder {
-    // Source: https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
-    name: String,
-    typename: String, // Should be just `type`, but that is a registered keyword in Rust
-    default: Option<serde_json::Value>,
-    // Source: https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    indexed: Option<bool>,
-    stored: Option<bool>,
-    doc_values: Option<bool>,
-    sort_missing_first: Option<bool>,
-    sort_missing_last: Option<bool>,
-    multi_valued: Option<bool>,
-    uninvertible: Option<bool>,
-    omit_norms: Option<bool>,
-    omit_term_freq_and_positions: Option<bool>,
-    omit_positions: Option<bool>,
-    term_vectors: Option<bool>,
-    term_positions: Option<bool>,
-    term_offsets: Option<bool>,
-    term_payloads: Option<bool>,
-    required: Option<bool>,
-    use_doc_values_as_stored: Option<bool>,
-    large: Option<bool>
+    props: HashMap<String, serde_json::Value>
 }
 
 impl FieldBuilder {
@@ -497,28 +477,34 @@ impl FieldBuilder {
     /// # Arguments
     /// * `name` - The name of the field.
     pub fn new(name: String) -> FieldBuilder {
-        FieldBuilder {
-            name: name,
-            typename: "".into(),
-            default: None,
-            indexed: None,
-            stored: None,
-            doc_values: None,
-            sort_missing_first: None,
-            sort_missing_last: None,
-            multi_valued: None,
-            uninvertible: None,
-            omit_norms: None,
-            omit_term_freq_and_positions: None,
-            omit_positions: None,
-            term_vectors: None,
-            term_positions: None,
-            term_offsets: None,
-            term_payloads: None,
-            required: None,
-            use_doc_values_as_stored: None,
-            large: None
-        }
+        let mut field_builder = FieldBuilder {
+            props: HashMap::new(),
+        };
+        field_builder.set("name".into(), name);
+        field_builder
+    }
+
+    /// Defines a field's property.
+    ///
+    /// # Arguments
+    /// * `prop` - The property name.
+    /// * `value` - The property value.
+    ///
+    /// # Example
+    /// ```
+    /// let name = FieldBuilder::new("name".into())
+    ///     .set("type".into(), "string".into_string())
+    ///     .set("omitNorms".into(), true)
+    ///     .set("stored".into(), true)
+    ///     .build().unwrap();
+    /// ```
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
+    pub fn set<T>(&mut self, prop: String, value: T) -> &mut Self
+        where T: serde::ser::Serialize {
+        self.props.insert(prop, json!(value));
+        self
     }
 
     /// Sets the type of the field.
@@ -529,8 +515,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
     pub fn typename(&mut self, typename: String) -> &mut Self {
-        self.typename = typename;
-        self
+        self.set("type".into(), typename)
     }
 
     /// Sets a default value for documents without the field.
@@ -540,9 +525,9 @@ impl FieldBuilder {
     ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
-    pub fn default(&mut self, default: serde_json::Value) -> &mut Self {
-        self.default = Some(default);
-        self
+    pub fn default<T>(&mut self, default: T) -> &mut Self
+        where T: serde::ser::Serialize {
+        self.set("default".into(), default)
     }
 
     /// Sets whether the field can be used in queries.
@@ -553,8 +538,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn indexed(&mut self, indexed: bool) -> &mut Self {
-        self.indexed = Some(indexed);
-        self
+        self.set("indexed".into(), indexed)
     }
 
     /// Sets whether the field's value can be retrieved with queries.
@@ -565,8 +549,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn stored(&mut self, stored: bool) -> &mut Self {
-        self.stored = Some(stored);
-        self
+        self.set("stored".into(), stored)
     }
 
     /// Sets whether the field's value should be put into a DocValues structure.
@@ -577,8 +560,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
-        self.doc_values = Some(doc_values);
-        self
+        self.set("docValues".into(), doc_values)
     }
 
     /// Control the placement of documents when a sort field is not present.
@@ -589,8 +571,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
-        self.sort_missing_first = Some(sort_missing_first);
-        self
+        self.set("sortMissingFirst".into(), sort_missing_first)
     }
 
     /// Control the placement of documents when a sort field is not present.
@@ -601,8 +582,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
-        self.sort_missing_last = Some(sort_missing_last);
-        self
+        self.set("sortMissingLast".into(), sort_missing_last)
     }
 
     /// Sets whether the field can contain multiple values of its type.
@@ -613,8 +593,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
-        self.multi_valued = Some(multi_valued);
-        self
+        self.set("multiValued".into(), multi_valued)
     }
 
     /// Sets whether the field can be "un-inverted" at query time.
@@ -625,8 +604,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
-        self.uninvertible = Some(uninvertible);
-        self
+        self.set("uninvertible".into(), uninvertible)
     }
 
     /// Sets whether norms associated with this field should be omitted.
@@ -637,8 +615,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
-        self.omit_norms = Some(omit_norms);
-        self
+        self.set("omitNorms".into(), omit_norms)
     }
 
     /// Sets whether term frequency, positions, and payloads from postings for this field should be
@@ -650,8 +627,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_term_freq_and_positions(&mut self, omit_term_freq_and_positions: bool) -> &mut Self {
-        self.omit_term_freq_and_positions = Some(omit_term_freq_and_positions);
-        self
+        self.set("omitTermFreqAndPositions".into(), omit_term_freq_and_positions)
     }
 
     /// Similar to `omit_term_freq_and_positions`, but preserves term frequency information.
@@ -662,8 +638,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
-        self.omit_positions = Some(omit_positions);
-        self
+        self.set("omitPoisitions".into(), omit_positions)
     }
 
     /// Enables maintaining term vectors.
@@ -674,8 +649,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
-        self.term_vectors = Some(term_vectors);
-        self
+        self.set("termVectors".into(), term_vectors)
     }
 
     /// Enables maintaining position information for each term occurrence.
@@ -686,8 +660,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
-        self.term_positions = Some(term_positions);
-        self
+        self.set("termPositions".into(), term_positions)
     }
 
     /// Enables maintaining offset information for each term occurrence.
@@ -698,8 +671,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
-        self.term_offsets = Some(term_offsets);
-        self
+        self.set("termOffsets".into(), term_offsets)
     }
 
     /// Enables maintaining payload information for each term occurrence.
@@ -710,8 +682,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
-        self.term_payloads = Some(term_payloads);
-        self
+        self.set("termPayloads".into(), term_payloads)
     }
 
     /// Sets whether documents without this field should be rejected.
@@ -722,8 +693,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn required(&mut self, required: bool) -> &mut Self {
-        self.required = Some(required);
-        self
+        self.set("required".into(), required)
     }
 
     /// Enables returning `doc_value`s as if they were stored.
@@ -734,8 +704,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
-        self.use_doc_values_as_stored = Some(use_doc_values_as_stored);
-        self
+        self.set("useDocValuesAsStored".into(), use_doc_values_as_stored)
     }
 
     /// Enables lazy load.
@@ -746,8 +715,7 @@ impl FieldBuilder {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn large(&mut self, large: bool) -> &mut Self {
-        self.large = Some(large);
-        self
+        self.set("large".into(), large)
     }
 
     /// Returns a prebuilt `text` field.
@@ -836,89 +804,7 @@ impl FieldBuilder {
     ///     .build().unwrap();
     /// ```
     pub fn build(&self) -> Result<serde_json::Value, SolrError> {
-        if self.name.is_empty()
-            || self.typename.is_empty() {
-            return Err(SolrError);
-        }
-
-        let mut json = json!({
-            "name": self.name,
-            "type": self.typename
-        });
-
-        if self.default.is_some() {
-            json["default"] = json!(self.default.as_ref().unwrap());
-        }
-
-        if self.indexed.is_some() {
-            json["indexed"] = json!(self.indexed.unwrap());
-        }
-
-        if self.stored.is_some() {
-            json["stored"] = json!(self.stored.unwrap());
-        }
-
-        if self.doc_values.is_some() {
-            json["docValues"] = json!(self.doc_values.unwrap());
-        }
-
-        if self.sort_missing_first.is_some() {
-            json["sortMissingFirst"] = json!(self.sort_missing_first.unwrap());
-        }
-
-        if self.sort_missing_last.is_some() {
-            json["sortMissingLast"] = json!(self.sort_missing_last.unwrap());
-        }
-
-        if self.multi_valued.is_some() {
-            json["multiValued"] = json!(self.multi_valued.unwrap());
-        }
-
-        if self.uninvertible.is_some() {
-            json["uninvertible"] = json!(self.uninvertible.unwrap());
-        }
-
-        if self.omit_norms.is_some() {
-            json["omitNorms"] = json!(self.omit_norms.unwrap());
-        }
-
-        if self.omit_term_freq_and_positions.is_some() {
-            json["omitTermFreqAndPositions"] = json!(self.omit_term_freq_and_positions.unwrap());
-        }
-
-        if self.omit_positions.is_some() {
-            json["omitPositions"] = json!(self.omit_positions.unwrap());
-        }
-
-        if self.term_vectors.is_some() {
-            json["termVectors"] = json!(self.term_vectors.unwrap());
-        }
-
-        if self.term_positions.is_some() {
-            json["termPositions"] = json!(self.term_positions.unwrap());
-        }
-
-        if self.term_offsets.is_some() {
-            json["termOffsets"] = json!(self.term_offsets.unwrap());
-        }
-
-        if self.term_payloads.is_some() {
-            json["termPayloads"] = json!(self.term_payloads.unwrap());
-        }
-
-        if self.required.is_some() {
-            json["required"] = json!(self.required.unwrap());
-        }
-
-        if self.use_doc_values_as_stored.is_some() {
-            json["useDocValuesAsStored"] = json!(self.use_doc_values_as_stored.unwrap());
-        }
-
-        if self.large.is_some() {
-            json["large"] = json!(self.large.unwrap());
-        }
-
-        Ok(json)
+        Ok(json!(self.props))
     }
 }
 
