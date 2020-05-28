@@ -521,7 +521,7 @@ impl FieldBuilder {
         }
     }
 
-    /// Set the type of the field.
+    /// Sets the type of the field.
     ///
     /// # Arguments
     /// * `typename` -
@@ -533,7 +533,7 @@ impl FieldBuilder {
         self
     }
 
-    /// Set a default value for documents without the field.
+    /// Sets a default value for documents without the field.
     ///
     /// # Arguments
     /// * `default` -
@@ -545,7 +545,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether the field can be used in queries.
     ///
     /// # Arguments
     /// * `indexed` -
@@ -557,7 +557,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether the field's value can be retrieved with queries.
     ///
     /// # Arguments
     /// * `stored` -
@@ -569,7 +569,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether the field's value should be put into a DocValues structure.
     ///
     /// # Arguments
     /// * `doc_values` -
@@ -581,7 +581,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Control the placement of documents when a sort field is not present.
     ///
     /// # Arguments
     /// * `sort_missing_first` -
@@ -593,7 +593,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Control the placement of documents when a sort field is not present.
     ///
     /// # Arguments
     /// * `sort_missing_last` -
@@ -605,7 +605,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether the field can contain multiple values of its type.
     ///
     /// # Arguments
     /// * `multi_valued` -
@@ -617,7 +617,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether the field can be "un-inverted" at query time.
     ///
     /// # Arguments
     /// * `uninvertible` -
@@ -629,7 +629,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether norms associated with this field should be omitted.
     ///
     /// # Arguments
     /// * `omit_norms` -
@@ -641,7 +641,8 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether term frequency, positions, and payloads from postings for this field should be
+    /// omitted.
     ///
     /// # Arguments
     /// * `omit_term_freq_and_positions` -
@@ -653,7 +654,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Similar to `omit_term_freq_and_positions`, but preserves term frequency information.
     ///
     /// # Arguments
     /// * `omit_positions` -
@@ -665,7 +666,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables maintaining term vectors.
     ///
     /// # Arguments
     /// * `term_vectors` -
@@ -677,7 +678,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables maintaining position information for each term occurrence.
     ///
     /// # Arguments
     /// * `term_positions` -
@@ -689,7 +690,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables maintaining offset information for each term occurrence.
     ///
     /// # Arguments
     /// * `term_offsets` -
@@ -701,7 +702,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables maintaining payload information for each term occurrence.
     ///
     /// # Arguments
     /// * `term_payloads` -
@@ -713,7 +714,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Sets whether documents without this field should be rejected.
     ///
     /// # Arguments
     /// * `required` -
@@ -725,7 +726,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables returning `doc_value`s as if they were stored.
     ///
     /// # Arguments
     /// * `use_doc_values_as_stored` -
@@ -737,7 +738,7 @@ impl FieldBuilder {
         self
     }
 
-    ///
+    /// Enables lazy load.
     ///
     /// # Arguments
     /// * `large` -
