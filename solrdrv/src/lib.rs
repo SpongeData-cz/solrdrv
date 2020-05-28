@@ -369,6 +369,10 @@ pub struct FieldBuilder {
     omit_norms: Option<bool>,
     omit_term_freq_and_positions: Option<bool>,
     omit_positions: Option<bool>,
+    term_vectors: Option<bool>,
+    term_positions: Option<bool>,
+    term_offsets: Option<bool>,
+    term_payloads: Option<bool>,
     required: Option<bool>,
     use_doc_values_as_stored: Option<bool>,
     large: Option<bool>
@@ -390,14 +394,29 @@ impl FieldBuilder {
             omit_norms: None,
             omit_term_freq_and_positions: None,
             omit_positions: None,
+            term_vectors: None,
+            term_positions: None,
+            term_offsets: None,
+            term_payloads: None,
             required: None,
             use_doc_values_as_stored: None,
             large: None
         }
     }
 
+    /// Builds a new field descriptor with specified properties.
+    ///
+    /// # Example
+    /// ```
+    /// let name = FieldBuilder::new("name".into())
+    ///     .typename("string".into())
+    ///     .omit_norms(true)
+    ///     .stored(true)
+    ///     .build().unwrap();
+    /// ```
     pub fn build(&self) -> Result<serde_json::Value, SolrError> {
-        if self.typename.is_empty() {
+        if self.name.is_empty()
+            || self.typename.is_empty() {
             return Err(SolrError);
         }
 
@@ -450,6 +469,22 @@ impl FieldBuilder {
             json["omitPositions"] = json!(self.omit_positions.unwrap());
         }
 
+        if self.term_vectors.is_some() {
+            json["termVectors"] = json!(self.term_vectors.unwrap());
+        }
+
+        if self.term_positions.is_some() {
+            json["termPositions"] = json!(self.term_positions.unwrap());
+        }
+
+        if self.term_offsets.is_some() {
+            json["termOffsets"] = json!(self.term_offsets.unwrap());
+        }
+
+        if self.term_payloads.is_some() {
+            json["termPayloads"] = json!(self.term_payloads.unwrap());
+        }
+
         if self.required.is_some() {
             json["required"] = json!(self.required.unwrap());
         }
@@ -465,76 +500,134 @@ impl FieldBuilder {
         Ok(json)
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
     pub fn typename(&mut self, typename: String) -> &mut Self {
         self.typename = typename;
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
     pub fn default(&mut self, default: serde_json::Value) -> &mut Self {
         self.default = Some(default);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn indexed(&mut self, indexed: bool) -> &mut Self {
         self.indexed = Some(indexed);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn stored(&mut self, stored: bool) -> &mut Self {
         self.stored = Some(stored);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
         self.doc_values = Some(doc_values);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
         self.sort_missing_first = Some(sort_missing_first);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
         self.sort_missing_last = Some(sort_missing_last);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
         self.multi_valued = Some(multi_valued);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
         self.uninvertible = Some(uninvertible);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
         self.omit_norms = Some(omit_norms);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_term_freq_and_positions(&mut self, omit_term_freq_and_positions: bool) -> &mut Self {
         self.omit_term_freq_and_positions = Some(omit_term_freq_and_positions);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
         self.omit_positions = Some(omit_positions);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
+        self.term_vectors = Some(term_vectors);
+        self
+    }
+
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
+        self.term_positions = Some(term_positions);
+        self
+    }
+
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
+        self.term_offsets = Some(term_offsets);
+        self
+    }
+
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
+        self.term_payloads = Some(term_payloads);
+        self
+    }
+
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn required(&mut self, required: bool) -> &mut Self {
         self.required = Some(required);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
         self.use_doc_values_as_stored = Some(use_doc_values_as_stored);
         self
     }
 
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     pub fn large(&mut self, large: bool) -> &mut Self {
         self.large = Some(large);
         self
