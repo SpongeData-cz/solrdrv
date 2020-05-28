@@ -1,3 +1,5 @@
+//! Solrdrv is an unofficial Solr driver for the Rust programming language.
+
 pub use tokio;
 pub use serde;
 pub use serde_json;
@@ -11,6 +13,7 @@ use serde_json::Value;
 const MAX_CHAR_VAL: u32 = std::char::MAX as u32;
 
 #[derive(Debug)]
+/// A common error type used by this library
 pub struct SolrError;
 
 impl std::error::Error for SolrError {}
@@ -34,6 +37,7 @@ impl From<reqwest::Error> for SolrError {
 }
 
 #[derive(Debug)]
+/// A Solr client
 pub struct Solr {
     /// A protocol on which is the Solr API available (e.g. `http`, `https`).
     pub protocol: String,
@@ -179,6 +183,7 @@ impl Solr {
 }
 
 #[derive(Debug)]
+/// An API for managing collections
 pub struct CollectionsAPI<'a> {
     client: &'a Solr
 }
@@ -196,9 +201,7 @@ impl<'a> CollectionsAPI<'a> {
     /// # Arguments
     /// * `name` - The name of the collection.
     pub fn create(&self, name: String) -> CollectionBuilder<'a> {
-        let mut builder = CollectionBuilder::new(&self.client);
-        builder.name(name);
-        builder
+        CollectionBuilder::new(&self.client, name);
     }
 
     /// Returns a list of existing collections.
@@ -255,7 +258,7 @@ impl<'a> CollectionsAPI<'a> {
 }
 
 #[derive(Debug)]
-/// Abstraction of an existing collection.
+/// An abstraction of a single existing collection
 pub struct Collection<'a> {
     client: &'a Solr,
     /// The name of the collection.
@@ -353,6 +356,116 @@ impl<'a> Collection<'a> {
 }
 
 #[derive(Debug)]
+/// A builder for collections
+pub struct CollectionBuilder<'a> {
+    client: &'a Solr,
+    // Source: https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    name: String,
+    num_shards: Option<usize>,
+    max_shards_per_node: Option<usize>,
+    router_field: Option<String>,
+}
+
+impl<'a> CollectionBuilder<'a> {
+    fn new<'b: 'a>(client: &'b Solr, name: String) -> CollectionBuilder<'a> {
+        CollectionBuilder {
+            client: &client,
+            name: name,
+            num_shards: None,
+            max_shards_per_node: None,
+            router_field: None,
+        }
+    }
+
+    /// Set the number of shards to be created as part of the collection.
+    ///
+    /// # Arguments
+    /// * `num_shards` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn num_shards(&mut self, num_shards: usize) -> &mut Self {
+        self.num_shards = Some(num_shards);
+        self
+    }
+
+    /// Set the maximum number of shards per node.
+    ///
+    /// # Arguments
+    /// * `max_shards_per_node` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn max_shards_per_node(&mut self, max_shards_per_node: usize) -> &mut Self {
+        self.max_shards_per_node = Some(max_shards_per_node);
+        self
+    }
+
+    /// Set the name of the field used to compute a hash.
+    ///
+    /// # Arguments
+    /// * `router_field`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn router_field(&mut self, router_field: String) -> &mut Self {
+        self.router_field = Some(router_field);
+        self
+    }
+
+    fn build_path(&self) -> String {
+        let mut path = format!("admin/collections?action=CREATE&name={}", self.name);
+
+        if self.num_shards.is_some() {
+            let temp = self.num_shards.as_ref().unwrap();
+            path = format!("{}&numShards={}", path, temp);
+        }
+
+        if self.max_shards_per_node.is_some() {
+            let temp = self.max_shards_per_node.as_ref().unwrap();
+            path = format!("{}&maxShardsPerNode={}", path, temp);
+        }
+
+        if self.router_field.is_some() {
+            let temp = self.router_field.as_ref().unwrap();
+            let temp = self.client.url_encode(&temp);
+            path = format!("{}&router.field={}", path, temp);
+        }
+
+        path
+    }
+
+    /// Creates a new collection with specified properties.
+    ///
+    /// # Example
+    /// Following example creates a new `users` collection.
+    /// ```
+    /// let mut users = solr.collections()
+    ///     .create("users".into())
+    ///     .router_field("id".into())
+    ///     .num_shards(16)
+    ///     .max_shards_per_node(16)
+    ///     .commit().await?;
+    /// ```
+    pub async fn commit(&mut self) -> Result<Collection<'a>, SolrError> {
+        if self.name.is_empty() {
+            return Err(SolrError);
+        }
+        let path = self.build_path();
+        let res = match self.client.get(&path).await {
+            Ok(r) => r,
+            Err(_) => return Err(SolrError),
+        };
+        if res.get("success").is_none() {
+            return Err(SolrError);
+        }
+        let col = Collection::new(&self.client, self.name.clone());
+        Ok(col)
+    }
+}
+
+#[derive(Debug)]
+/// A builder for schema fields
 pub struct FieldBuilder {
     // Source: https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
     name: String,
@@ -379,6 +492,10 @@ pub struct FieldBuilder {
 }
 
 impl FieldBuilder {
+    /// Creates a new field builder.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the field.
     pub fn new(name: String) -> FieldBuilder {
         FieldBuilder {
             name: name,
@@ -402,6 +519,309 @@ impl FieldBuilder {
             use_doc_values_as_stored: None,
             large: None
         }
+    }
+
+    /// Set the type of the field.
+    ///
+    /// # Arguments
+    /// * `typename` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
+    pub fn typename(&mut self, typename: String) -> &mut Self {
+        self.typename = typename;
+        self
+    }
+
+    /// Set a default value for documents without the field.
+    ///
+    /// # Arguments
+    /// * `default` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
+    pub fn default(&mut self, default: serde_json::Value) -> &mut Self {
+        self.default = Some(default);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `indexed` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn indexed(&mut self, indexed: bool) -> &mut Self {
+        self.indexed = Some(indexed);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `stored` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn stored(&mut self, stored: bool) -> &mut Self {
+        self.stored = Some(stored);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `doc_values` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
+        self.doc_values = Some(doc_values);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `sort_missing_first` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
+        self.sort_missing_first = Some(sort_missing_first);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `sort_missing_last` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
+        self.sort_missing_last = Some(sort_missing_last);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `multi_valued` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
+        self.multi_valued = Some(multi_valued);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `uninvertible` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
+        self.uninvertible = Some(uninvertible);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `omit_norms` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
+        self.omit_norms = Some(omit_norms);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `omit_term_freq_and_positions` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn omit_term_freq_and_positions(&mut self, omit_term_freq_and_positions: bool) -> &mut Self {
+        self.omit_term_freq_and_positions = Some(omit_term_freq_and_positions);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `omit_positions` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
+        self.omit_positions = Some(omit_positions);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `term_vectors` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
+        self.term_vectors = Some(term_vectors);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `term_positions` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
+        self.term_positions = Some(term_positions);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `term_offsets` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
+        self.term_offsets = Some(term_offsets);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `term_payloads` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
+        self.term_payloads = Some(term_payloads);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `required` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn required(&mut self, required: bool) -> &mut Self {
+        self.required = Some(required);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `use_doc_values_as_stored` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
+        self.use_doc_values_as_stored = Some(use_doc_values_as_stored);
+        self
+    }
+
+    ///
+    ///
+    /// # Arguments
+    /// * `large` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
+    pub fn large(&mut self, large: bool) -> &mut Self {
+        self.large = Some(large);
+        self
+    }
+
+    /// Returns a prebuilt `text` field.
+    pub fn text(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("lowercase".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `string` field.
+    pub fn string(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("string".into())
+            .omit_norms(true)
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `multi string` field.
+    pub fn multi_string(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("strings".into())
+            .omit_norms(true)
+            .multi_valued(true)
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `numeric` field.
+    pub fn numeric(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("pfloat".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `double` field.
+    pub fn double(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("pdouble".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `long` field.
+    pub fn long(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("plong".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `fulltext` field.
+    pub fn fulltext(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("text_general".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `tag` field.
+    pub fn tag(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("delimited_payloads_string".into())
+            .stored(true)
+            .build().unwrap()
+    }
+
+    /// Returns a prebuilt `date` field.
+    pub fn date(name: String) -> serde_json::Value {
+        FieldBuilder::new(name)
+            .typename("pdate".into())
+            .stored(true)
+            .build().unwrap()
     }
 
     /// Builds a new field descriptor with specified properties.
@@ -499,297 +919,10 @@ impl FieldBuilder {
 
         Ok(json)
     }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
-    pub fn typename(&mut self, typename: String) -> &mut Self {
-        self.typename = typename;
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
-    pub fn default(&mut self, default: serde_json::Value) -> &mut Self {
-        self.default = Some(default);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn indexed(&mut self, indexed: bool) -> &mut Self {
-        self.indexed = Some(indexed);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn stored(&mut self, stored: bool) -> &mut Self {
-        self.stored = Some(stored);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn doc_values(&mut self, doc_values: bool) -> &mut Self {
-        self.doc_values = Some(doc_values);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn sort_missing_first(&mut self, sort_missing_first: bool) -> &mut Self {
-        self.sort_missing_first = Some(sort_missing_first);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn sort_missing_last(&mut self, sort_missing_last: bool) -> &mut Self {
-        self.sort_missing_last = Some(sort_missing_last);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn multi_valued(&mut self, multi_valued: bool) -> &mut Self {
-        self.multi_valued = Some(multi_valued);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
-        self.uninvertible = Some(uninvertible);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
-        self.omit_norms = Some(omit_norms);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn omit_term_freq_and_positions(&mut self, omit_term_freq_and_positions: bool) -> &mut Self {
-        self.omit_term_freq_and_positions = Some(omit_term_freq_and_positions);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
-        self.omit_positions = Some(omit_positions);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
-        self.term_vectors = Some(term_vectors);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
-        self.term_positions = Some(term_positions);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
-        self.term_offsets = Some(term_offsets);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
-        self.term_payloads = Some(term_payloads);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn required(&mut self, required: bool) -> &mut Self {
-        self.required = Some(required);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn use_doc_values_as_stored(&mut self, use_doc_values_as_stored: bool) -> &mut Self {
-        self.use_doc_values_as_stored = Some(use_doc_values_as_stored);
-        self
-    }
-
-    /// # See
-    /// https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
-    pub fn large(&mut self, large: bool) -> &mut Self {
-        self.large = Some(large);
-        self
-    }
-
-    /// Returns a prebuilt `text` field.
-    pub fn text(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("lowercase".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `string` field.
-    pub fn string(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("string".into())
-            .omit_norms(true)
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `multi string` field.
-    pub fn multi_string(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("strings".into())
-            .omit_norms(true)
-            .multi_valued(true)
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `numeric` field.
-    pub fn numeric(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("pfloat".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `double` field.
-    pub fn double(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("pdouble".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `long` field.
-    pub fn long(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("plong".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `fulltext` field.
-    pub fn fulltext(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("text_general".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `tag` field.
-    pub fn tag(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("delimited_payloads_string".into())
-            .stored(true)
-            .build().unwrap()
-    }
-
-    /// Returns a prebuilt `date` field.
-    pub fn date(name: String) -> serde_json::Value {
-        FieldBuilder::new(name)
-            .typename("pdate".into())
-            .stored(true)
-            .build().unwrap()
-    }
 }
 
 #[derive(Debug)]
-pub struct CollectionBuilder<'a> {
-    client: &'a Solr,
-    // Source: https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
-    name: String,
-    num_shards: Option<usize>,
-    max_shards_per_node: Option<usize>,
-    router_field: Option<String>,
-}
-
-impl<'a> CollectionBuilder<'a> {
-    fn new<'b: 'a>(client: &'b Solr) -> CollectionBuilder<'a> {
-        CollectionBuilder {
-            client: &client,
-            name: "".into(),
-            num_shards: None,
-            max_shards_per_node: None,
-            router_field: None,
-        }
-    }
-
-    pub fn name(&mut self, name: String) -> &mut Self {
-        self.name = name;
-        self
-    }
-
-    pub fn num_shards(&mut self, num_shards: usize) -> &mut Self {
-        self.num_shards = Some(num_shards);
-        self
-    }
-
-    pub fn max_shards_per_node(&mut self, max_shards_per_node: usize) -> &mut Self {
-        self.max_shards_per_node = Some(max_shards_per_node);
-        self
-    }
-
-    pub fn router_field(&mut self, router_field: String) -> &mut Self {
-        self.router_field = Some(router_field);
-        self
-    }
-
-    fn build_path(&self) -> String {
-        let mut path = format!("admin/collections?action=CREATE&name={}", self.name);
-
-        if self.num_shards.is_some() {
-            let temp = self.num_shards.as_ref().unwrap();
-            path = format!("{}&numShards={}", path, temp);
-        }
-
-        if self.max_shards_per_node.is_some() {
-            let temp = self.max_shards_per_node.as_ref().unwrap();
-            path = format!("{}&maxShardsPerNode={}", path, temp);
-        }
-
-        if self.router_field.is_some() {
-            let temp = self.router_field.as_ref().unwrap();
-            let temp = self.client.url_encode(&temp);
-            path = format!("{}&router.field={}", path, temp);
-        }
-
-        path
-    }
-
-    pub async fn commit(&mut self) -> Result<Collection<'a>, SolrError> {
-        if self.name.is_empty() {
-            return Err(SolrError);
-        }
-        let path = self.build_path();
-        let res = match self.client.get(&path).await {
-            Ok(r) => r,
-            Err(_) => return Err(SolrError),
-        };
-        if res.get("success").is_none() {
-            return Err(SolrError);
-        }
-        let col = Collection::new(&self.client, self.name.clone());
-        Ok(col)
-    }
-}
-
-#[derive(Debug)]
+/// A schema API
 pub struct SchemaAPI<'a, 'b> {
     collection: &'a Collection<'b>,
     fields_to_add: Vec<serde_json::Value>,
@@ -910,6 +1043,7 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
 }
 
 #[derive(Debug)]
+/// A query API
 pub struct Query<'a, 'b> {
     collection: &'a Collection<'b>,
     query: Option<String>,
@@ -1158,6 +1292,16 @@ impl<'a, 'b> Query<'a, 'b> {
         path
     }
 
+    /// Commits the query and returns its result.
+    ///
+    /// # Example
+    /// ```
+    /// let users_found = users.search()
+    ///     .query("name:Some")
+    ///     .sort("age asc")
+    ///     .field_list("name,age")
+    ///     .commit().await?;
+    /// ```
     pub async fn commit(&self) -> Result<Vec<serde_json::Value>, SolrError> {
         if self.query.is_none() {
             return Err(SolrError);
