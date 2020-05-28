@@ -354,23 +354,21 @@ impl<'a> Collection<'a> {
 
 #[derive(Debug)]
 pub struct FieldBuilder {
-    // Source: https://lucene.apache.org/solr/guide/8_5/field-type-definitions-and-properties.html
+    // Source: https://lucene.apache.org/solr/guide/8_5/defining-fields.html#field-properties
     name: String,
-    typename: String,
-    stored: Option<bool>,
+    typename: String, // Should be just `type`, but that is a registered keyword in Rust
+    default: Option<serde_json::Value>,
+    // Source: https://lucene.apache.org/solr/guide/8_5/defining-fields.html#optional-field-type-override-properties
     indexed: Option<bool>,
+    stored: Option<bool>,
     doc_values: Option<bool>,
     sort_missing_first: Option<bool>,
     sort_missing_last: Option<bool>,
     multi_valued: Option<bool>,
+    uninvertible: Option<bool>,
     omit_norms: Option<bool>,
     omit_term_freq_and_positions: Option<bool>,
     omit_positions: Option<bool>,
-    uninvertible: Option<bool>,
-    term_vectors: Option<bool>,
-    term_positions: Option<bool>,
-    term_offsets: Option<bool>,
-    term_payloads: Option<bool>,
     required: Option<bool>,
     use_doc_values_as_stored: Option<bool>,
     large: Option<bool>
@@ -381,20 +379,17 @@ impl FieldBuilder {
         FieldBuilder {
             name: name,
             typename: "".into(),
-            stored: None,
+            default: None,
             indexed: None,
+            stored: None,
             doc_values: None,
             sort_missing_first: None,
             sort_missing_last: None,
             multi_valued: None,
+            uninvertible: None,
             omit_norms: None,
             omit_term_freq_and_positions: None,
             omit_positions: None,
-            uninvertible: None,
-            term_vectors: None,
-            term_positions: None,
-            term_offsets: None,
-            term_payloads: None,
             required: None,
             use_doc_values_as_stored: None,
             large: None
@@ -411,72 +406,60 @@ impl FieldBuilder {
             "type": self.typename
         });
 
-        if self.stored.is_some() {
-            json["stored"] = json!(self.stored);
+        if self.default.is_some() {
+            json["default"] = json!(self.default.as_ref().unwrap());
         }
 
         if self.indexed.is_some() {
-            json["indexed"] = json!(self.indexed);
+            json["indexed"] = json!(self.indexed.unwrap());
+        }
+
+        if self.stored.is_some() {
+            json["stored"] = json!(self.stored.unwrap());
         }
 
         if self.doc_values.is_some() {
-            json["docValues"] = json!(self.doc_values);
+            json["docValues"] = json!(self.doc_values.unwrap());
         }
 
         if self.sort_missing_first.is_some() {
-            json["sortMissingFirst"] = json!(self.sort_missing_first);
+            json["sortMissingFirst"] = json!(self.sort_missing_first.unwrap());
         }
 
         if self.sort_missing_last.is_some() {
-            json["sortMissingLast"] = json!(self.sort_missing_last);
+            json["sortMissingLast"] = json!(self.sort_missing_last.unwrap());
         }
 
         if self.multi_valued.is_some() {
-            json["multiValued"] = json!(self.multi_valued);
-        }
-
-        if self.omit_norms.is_some() {
-            json["omitNorms"] = serde_json::Value::Bool(self.omit_norms.unwrap());
-        }
-
-        if self.omit_term_freq_and_positions.is_some() {
-            json["omitTermFreqAndPositions"] = serde_json::Value::Bool(self.omit_term_freq_and_positions.unwrap());
-        }
-
-        if self.omit_positions.is_some() {
-            json["omitPositions"] = serde_json::Value::Bool(self.omit_positions.unwrap());
+            json["multiValued"] = json!(self.multi_valued.unwrap());
         }
 
         if self.uninvertible.is_some() {
-            json["uninvertible"] = json!(self.uninvertible);
+            json["uninvertible"] = json!(self.uninvertible.unwrap());
         }
 
-        if self.term_vectors.is_some() {
-            json["termVectors"] = json!(self.term_vectors);
+        if self.omit_norms.is_some() {
+            json["omitNorms"] = json!(self.omit_norms.unwrap());
         }
 
-        if self.term_positions.is_some() {
-            json["termPositions"] = json!(self.term_positions);
+        if self.omit_term_freq_and_positions.is_some() {
+            json["omitTermFreqAndPositions"] = json!(self.omit_term_freq_and_positions.unwrap());
         }
 
-        if self.term_offsets.is_some() {
-            json["termOffsets"] = json!(self.term_offsets);
-        }
-
-        if self.term_payloads.is_some() {
-            json["termPayloads"] = json!(self.term_payloads);
+        if self.omit_positions.is_some() {
+            json["omitPositions"] = json!(self.omit_positions.unwrap());
         }
 
         if self.required.is_some() {
-            json["required"] = json!(self.required);
+            json["required"] = json!(self.required.unwrap());
         }
 
         if self.use_doc_values_as_stored.is_some() {
-            json["useDocValuesAsStored"] = json!(self.use_doc_values_as_stored);
+            json["useDocValuesAsStored"] = json!(self.use_doc_values_as_stored.unwrap());
         }
 
         if self.large.is_some() {
-            json["large"] = json!(self.large);
+            json["large"] = json!(self.large.unwrap());
         }
 
         Ok(json)
@@ -487,13 +470,18 @@ impl FieldBuilder {
         self
     }
 
-    pub fn stored(&mut self, stored: bool) -> &mut Self {
-        self.stored = Some(stored);
+    pub fn default(&mut self, default: serde_json::Value) -> &mut Self {
+        self.default = Some(default);
         self
     }
 
     pub fn indexed(&mut self, indexed: bool) -> &mut Self {
         self.indexed = Some(indexed);
+        self
+    }
+
+    pub fn stored(&mut self, stored: bool) -> &mut Self {
+        self.stored = Some(stored);
         self
     }
 
@@ -517,6 +505,11 @@ impl FieldBuilder {
         self
     }
 
+    pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
+        self.uninvertible = Some(uninvertible);
+        self
+    }
+
     pub fn omit_norms(&mut self, omit_norms: bool) -> &mut Self {
         self.omit_norms = Some(omit_norms);
         self
@@ -529,31 +522,6 @@ impl FieldBuilder {
 
     pub fn omit_positions(&mut self, omit_positions: bool) -> &mut Self {
         self.omit_positions = Some(omit_positions);
-        self
-    }
-
-    pub fn uninvertible(&mut self, uninvertible: bool) -> &mut Self {
-        self.uninvertible = Some(uninvertible);
-        self
-    }
-
-    pub fn term_vectors(&mut self, term_vectors: bool) -> &mut Self {
-        self.term_vectors = Some(term_vectors);
-        self
-    }
-
-    pub fn term_positions(&mut self, term_positions: bool) -> &mut Self {
-        self.term_positions = Some(term_positions);
-        self
-    }
-
-    pub fn term_offsets(&mut self, term_offsets: bool) -> &mut Self {
-        self.term_offsets = Some(term_offsets);
-        self
-    }
-
-    pub fn term_payloads(&mut self, term_payloads: bool) -> &mut Self {
-        self.term_payloads = Some(term_payloads);
         self
     }
 
