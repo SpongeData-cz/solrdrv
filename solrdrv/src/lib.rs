@@ -360,23 +360,34 @@ impl<'a> Collection<'a> {
 /// A builder for collections
 pub struct CollectionBuilder<'a> {
     client: &'a Solr,
-    // Source: https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
-    // TODO: Refactor CollectionBuilder properties using HashMap!
-    name: String,
-    num_shards: Option<usize>,
-    max_shards_per_node: Option<usize>,
-    router_field: Option<String>,
+    params: HashMap<String, String>
 }
 
 impl<'a> CollectionBuilder<'a> {
     fn new<'b: 'a>(client: &'b Solr, name: String) -> CollectionBuilder<'a> {
-        CollectionBuilder {
+        let mut collection_builder = CollectionBuilder {
             client: &client,
-            name: name,
-            num_shards: None,
-            max_shards_per_node: None,
-            router_field: None,
-        }
+            params: HashMap::new()
+        };
+        collection_builder.set("name".into(), name);
+        collection_builder
+    }
+
+    // TODO: Add missing CollectionBuilder API fields!
+
+    /// Sets a collection parameter.
+    ///
+    /// # Arguments
+    /// * `param` - The parameter name.
+    /// * `value` - The parameter value.
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn set<T>(&mut self, param: String, value: T) -> &mut Self
+        where T: std::string::ToString {
+        let encoded = self.client.url_encode(&value.to_string());
+        self.params.insert(param, encoded);
+        self
     }
 
     /// Set the number of shards to be created as part of the collection.
@@ -387,8 +398,7 @@ impl<'a> CollectionBuilder<'a> {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
     pub fn num_shards(&mut self, num_shards: usize) -> &mut Self {
-        self.num_shards = Some(num_shards);
-        self
+        self.set("numShards".into(), num_shards)
     }
 
     /// Set the maximum number of shards per node.
@@ -399,8 +409,7 @@ impl<'a> CollectionBuilder<'a> {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
     pub fn max_shards_per_node(&mut self, max_shards_per_node: usize) -> &mut Self {
-        self.max_shards_per_node = Some(max_shards_per_node);
-        self
+        self.set("maxShardsPerNode".into(), max_shards_per_node)
     }
 
     /// Set the name of the field used to compute a hash.
@@ -411,29 +420,14 @@ impl<'a> CollectionBuilder<'a> {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
     pub fn router_field(&mut self, router_field: String) -> &mut Self {
-        self.router_field = Some(router_field);
-        self
+        self.set("routerField".into(), router_field)
     }
 
     fn build_path(&self) -> String {
-        let mut path = format!("admin/collections?action=CREATE&name={}", self.name);
-
-        if self.num_shards.is_some() {
-            let temp = self.num_shards.as_ref().unwrap();
-            path = format!("{}&numShards={}", path, temp);
+        let mut path = "admin/collections?action=CREATE".into();
+        for (k, v) in self.params.iter() {
+            path = format!("{}&{}={}", path, k, v);
         }
-
-        if self.max_shards_per_node.is_some() {
-            let temp = self.max_shards_per_node.as_ref().unwrap();
-            path = format!("{}&maxShardsPerNode={}", path, temp);
-        }
-
-        if self.router_field.is_some() {
-            let temp = self.router_field.as_ref().unwrap();
-            let temp = self.client.url_encode(&temp);
-            path = format!("{}&router.field={}", path, temp);
-        }
-
         path
     }
 
@@ -450,9 +444,11 @@ impl<'a> CollectionBuilder<'a> {
     ///     .commit().await?;
     /// ```
     pub async fn commit(&mut self) -> Result<Collection<'a>, SolrError> {
-        if self.name.is_empty() {
+        let name = self.params.get("name".into());
+        if name.is_none() {
             return Err(SolrError);
         }
+        let name = name.unwrap().clone();
         let path = self.build_path();
         let res = match self.client.get(&path).await {
             Ok(r) => r,
@@ -461,7 +457,7 @@ impl<'a> CollectionBuilder<'a> {
         if res.get("success").is_none() {
             return Err(SolrError);
         }
-        let col = Collection::new(&self.client, self.name.clone());
+        let col = Collection::new(&self.client, name);
         Ok(col)
     }
 }
