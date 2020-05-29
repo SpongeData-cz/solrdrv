@@ -813,7 +813,7 @@ impl FieldBuilder {
 pub struct SchemaAPI<'a, 'b> {
     collection: &'a Collection<'b>,
     fields_to_add: Vec<serde_json::Value>,
-    fields_to_delete: Vec<String>,
+    fields_to_delete: Vec<serde_json::Value>,
     fields_to_replace: Vec<serde_json::Value>,
 }
 
@@ -868,7 +868,7 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#delete-a-field
     pub fn delete_field(&mut self, name: String) -> &mut Self {
-        self.fields_to_delete.push(name);
+        self.fields_to_delete.push(json!({ "name": name }));
         self
     }
 
@@ -933,249 +933,144 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
 /// A query API
 pub struct Query<'a, 'b> {
     collection: &'a Collection<'b>,
-    query: Option<String>,
-    // https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html
-    def_type: Option<String>,
-    sort: Option<String>,
-    start: Option<usize>,
-    rows: Option<usize>,
-    filter_query: Option<String>,
-    field_list: Option<String>,
-    debug: Option<String>,
-    explain_other: Option<String>,
-    time_allowed: Option<usize>,
-    segment_terminate_early: Option<bool>,
-    omit_header: Option<bool>,
-    wt: Option<String>,
-    cache: Option<bool>,
-    log_params_list: Option<String>,
-    echo_params: Option<String>,
+    params: HashMap<String, String>
 }
 
 impl<'a, 'b> Query<'a, 'b> {
     fn new(collection: &'b Collection) -> Query<'a, 'b> {
         Query {
             collection: &collection,
-            query: None,
-            def_type: None,
-            sort: None,
-            start: None,
-            rows: None,
-            filter_query: None,
-            field_list: None,
-            debug: None,
-            explain_other: None,
-            time_allowed: None,
-            segment_terminate_early: None,
-            omit_header: None,
-            wt: None,
-            cache: None,
-            log_params_list: None,
-            echo_params: None,
+            params: HashMap::new()
         }
+    }
+
+    /// Defines a query parameter.
+    ///
+    /// # Arguments
+    /// * `param` - The parameter name.
+    /// * `value` - The parameter value.
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html
+    pub fn set<T>(&mut self, param: String, value: T) -> &mut Self
+        where T: std::string::ToString {
+        self.params.insert(param, value.to_string());
+        self
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/the-standard-query-parser.html
     pub fn query(&mut self, query: String) -> &mut Self {
-        self.query = Some(query);
-        self
+        let encoded = self.collection.client.url_encode(&query);
+        self.set("q".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#deftype-parameter
     pub fn def_type(&mut self, def_type: String) -> &mut Self {
-        self.def_type = Some(def_type);
-        self
+        let encoded = self.collection.client.url_encode(&def_type);
+        self.set("defType".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#sort-parameter
     pub fn sort(&mut self, sort: String) -> &mut Self {
-        self.sort = Some(sort);
-        self
+        let encoded = self.collection.client.url_encode(&sort);
+        self.set("sort".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#start-parameter
     pub fn start(&mut self, start: usize) -> &mut Self {
-        self.start = Some(start);
-        self
+        self.set("start".into(), start)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#rows-parameter
     pub fn rows(&mut self, rows: usize) -> &mut Self {
-        self.rows = Some(rows);
-        self
+        self.set("rows".into(), rows)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#fq-filter-query-parameter
-    pub fn filter_query(&mut self, filter_query: String) -> &mut Self {
-        self.filter_query = Some(filter_query);
-        self
+    pub fn fq(&mut self, fq: String) -> &mut Self {
+        let encoded = self.collection.client.url_encode(&fq);
+        self.set("fq".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#fl-field-list-parameter
-    pub fn fields(&mut self, fields: String) -> &mut Self {
-        self.field_list = Some(fields);
-        self
+    pub fn fl(&mut self, fl: String) -> &mut Self {
+        let encoded = self.collection.client.url_encode(&fl);
+        self.set("fl".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#debug-parameter
     pub fn debug(&mut self, debug: String) -> &mut Self {
-        self.debug = Some(debug);
-        self
+        let encoded = self.collection.client.url_encode(&debug);
+        self.set("debug".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#explainother-parameter
     pub fn explain_other(&mut self, explain_other: String) -> &mut Self {
-        self.explain_other = Some(explain_other);
-        self
+        let encoded = self.collection.client.url_encode(&explain_other);
+        self.set("explainOther".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#timeallowed-parameter
     pub fn time_allowed(&mut self, time_allowed: usize) -> &mut Self {
-        self.time_allowed = Some(time_allowed);
-        self
+        self.set("timeAllowed".into(), time_allowed)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#segmentterminateearly-parameter
     pub fn segment_terminate_early(&mut self, segment_terminate_early: bool) -> &mut Self {
-        self.segment_terminate_early = Some(segment_terminate_early);
-        self
+        self.set("segmentTerminateEarly".into(), segment_terminate_early)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#omitheader-parameter
     pub fn omit_header(&mut self, omit_header: bool) -> &mut Self {
-        self.omit_header = Some(omit_header);
-        self
+        self.set("omitHeader".into(), omit_header)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#wt-parameter
     pub fn wt(&mut self, wt: String) -> &mut Self {
-        self.wt = Some(wt);
-        self
+        let encoded = self.collection.client.url_encode(&wt);
+        self.set("wt".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#cache-parameter
     pub fn cache(&mut self, cache: bool) -> &mut Self {
-        self.cache = Some(cache);
-        self
+        self.set("cache".into(), cache)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#logparamslist-parameter
     pub fn log_params_list(&mut self, log_params_list: String) -> &mut Self {
-        self.log_params_list = Some(log_params_list);
-        self
+        let encoded = self.collection.client.url_encode(&log_params_list);
+        self.set("logParamsList".into(), encoded)
     }
 
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#echoparams-parameter
     pub fn echo_params(&mut self, echo_params: String) -> &mut Self {
-        self.echo_params = Some(echo_params);
-        self
+        let encoded = self.collection.client.url_encode(&echo_params);
+        self.set("echoParams".into(), encoded)
     }
 
     fn build_path(&self) -> String {
-        let q = self.query.as_ref().unwrap();
-        let q = self.collection.client.url_encode(q);
-        let mut path: String = format!("{}/select?q={}", self.collection.name, q);
-
-        if self.def_type.is_some() {
-            let temp = self.def_type.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&defType={}", path, temp);
+        let mut path: String = format!("{}/select?", self.collection.name);
+        for (k, v) in self.params.iter() {
+            path = format!("{}{}={}&", path, k, v);
         }
-
-        if self.sort.is_some() {
-            let temp = self.sort.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&sort={}", path, temp);
-        }
-
-        if self.start.is_some() {
-            let temp = self.start.as_ref().unwrap();
-            path = format!("{}&start={}", path, temp);
-        }
-
-        if self.rows.is_some() {
-            let temp = self.rows.as_ref().unwrap();
-            path = format!("{}&rows={}", path, temp);
-        }
-
-        if self.filter_query.is_some() {
-            let temp = self.filter_query.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&fq={}", path, temp);
-        }
-
-        if self.field_list.is_some() {
-            let temp = self.field_list.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&fl={}", path, temp);
-        }
-
-        if self.debug.is_some() {
-            let temp = self.debug.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&debug={}", path, temp);
-        }
-
-        if self.explain_other.is_some() {
-            let temp = self.explain_other.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&explainOther={}", path, temp);
-        }
-
-        if self.time_allowed.is_some() {
-            let temp = self.time_allowed.as_ref().unwrap();
-            path = format!("{}&timeAllowed={}", path, temp);
-        }
-
-        if self.segment_terminate_early.is_some() {
-            let temp = self.segment_terminate_early.as_ref().unwrap();
-            path = format!("{}&segmentTerminateEarly={}", path, temp);
-        }
-
-        if self.omit_header.is_some() {
-            let temp = self.omit_header.as_ref().unwrap();
-            path = format!("{}&omitHeader={}", path, temp);
-        }
-
-        if self.wt.is_some() {
-            let temp = self.wt.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&wt={}", path, temp);
-        }
-
-        if self.cache.is_some() {
-            let temp = self.cache.as_ref().unwrap();
-            path = format!("{}&cache={}", path, temp);
-        }
-
-        if self.log_params_list.is_some() {
-            let temp = self.log_params_list.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&logParamsList={}", path, temp);
-        }
-
-        if self.echo_params.is_some() {
-            let temp = self.echo_params.as_ref().unwrap();
-            let temp = self.collection.client.url_encode(temp);
-            path = format!("{}&echoParams={}", path, temp);
-        }
-
+        path.remove(path.len() - 1);
+        println!("Query: {}", path);
         path
     }
 
@@ -1186,13 +1081,10 @@ impl<'a, 'b> Query<'a, 'b> {
     /// let users_found = users.search()
     ///     .query("name:Some")
     ///     .sort("age asc")
-    ///     .field_list("name,age")
+    ///     .fl("name,age")
     ///     .commit().await?;
     /// ```
     pub async fn commit(&self) -> Result<Vec<serde_json::Value>, SolrError> {
-        if self.query.is_none() {
-            return Err(SolrError);
-        }
         let path = self.build_path();
         let res = match self.collection.client.get(&path).await {
             Ok(r) => r,

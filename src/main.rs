@@ -28,8 +28,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .commit().await?;
 
     users.schema()
-        .add_field(FieldBuilder::string("name".into()))
-        .add_field(FieldBuilder::numeric("age".into()))
+    //     .add_field(FieldBuilder::string("name".into()))
+    //     .add_field(FieldBuilder::numeric("age".into()))
         .add_field(FieldBuilder::string("some_shit".into()))
         .commit().await?;
 
@@ -52,6 +52,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .query("(name:Some AND age:19) OR age:21".into())
         // .from_json(json!(...)) // TODO: Add JSON -> query string method!
         .sort("name asc".into())
+        .fl("name,age".into())
         .commit().await?;
     println!("{:#?}", users_found);
 
