@@ -959,7 +959,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self
     }
 
-    ///
+    /// Sets the query string.
     ///
     /// # Arguments
     /// * `query`-
@@ -971,7 +971,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("q".into(), encoded)
     }
 
-    ///
+    /// Defines the query parsers.
     ///
     /// # Arguments
     /// * `def_type`-
@@ -983,7 +983,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("defType".into(), encoded)
     }
 
-    ///
+    /// Defines sorting of matching query results.
     ///
     /// # Arguments
     /// * `sort`-
@@ -995,7 +995,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("sort".into(), encoded)
     }
 
-    ///
+    /// Specifies an offset into a query's result set.
     ///
     /// # Arguments
     /// * `start`-
@@ -1006,7 +1006,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("start".into(), start)
     }
 
-    ///
+    /// Specifies the maximum number of documents to be returned from the query's result set.
     ///
     /// # Arguments
     /// * `rows`-
@@ -1017,7 +1017,8 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("rows".into(), rows)
     }
 
-    ///
+    /// Defines a query that can be used to restrict the superset of documents that can be returned,
+    /// without influencing score.
     ///
     /// # Arguments
     /// * `fq`-
@@ -1029,7 +1030,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("fq".into(), encoded)
     }
 
-    ///
+    /// Limits document fields returned in a query's response.
     ///
     /// # Arguments
     /// * `fl`-
@@ -1041,7 +1042,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("fl".into(), encoded)
     }
 
-    ///
+    /// Specifies debug info returned in a query's response.
     ///
     /// # Arguments
     /// * `debug`-
@@ -1053,7 +1054,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("debug".into(), encoded)
     }
 
-    ///
+    /// Specifies a Lucene query in order to identify a set of documents.
     ///
     /// # Arguments
     /// * `explain_other`-
@@ -1065,7 +1066,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("explainOther".into(), encoded)
     }
 
-    ///
+    /// Specifies the amount of time (in milliseconds) allowed for a search to complete.
     ///
     /// # Arguments
     /// * `time_allowed`-
@@ -1076,7 +1077,8 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("timeAllowed".into(), time_allowed)
     }
 
-    ///
+    /// Enables skipping documents on a per-segment basis that are definitively not candidates for
+    /// the current page of results.
     ///
     /// # Arguments
     /// * `segment_terminate_early`-
@@ -1087,7 +1089,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("segmentTerminateEarly".into(), segment_terminate_early)
     }
 
-    ///
+    /// Excludes the header from the returned results.
     ///
     /// # Arguments
     /// * `omit_header`-
@@ -1098,7 +1100,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("omitHeader".into(), omit_header)
     }
 
-    ///
+    /// Defines the format of the query's result.
     ///
     /// # Arguments
     /// * `wt`-
@@ -1110,7 +1112,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("wt".into(), encoded)
     }
 
-    ///
+    /// Enables caching of query results.
     ///
     /// # Arguments
     /// * `cache`-
@@ -1121,7 +1123,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("cache".into(), cache)
     }
 
-    ///
+    /// Specifies which parameters of a query should be logged.
     ///
     /// # Arguments
     /// * `log_params_list`-
@@ -1133,7 +1135,7 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("logParamsList".into(), encoded)
     }
 
-    ///
+    /// Controls what information about request parameters is included in the response header.
     ///
     /// # Arguments
     /// * `echo_params`-
