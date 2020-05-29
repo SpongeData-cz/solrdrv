@@ -361,6 +361,7 @@ impl<'a> Collection<'a> {
 pub struct CollectionBuilder<'a> {
     client: &'a Solr,
     // Source: https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    // TODO: Refactor CollectionBuilder properties using HashMap!
     name: String,
     num_shards: Option<usize>,
     max_shards_per_node: Option<usize>,
@@ -958,6 +959,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `query`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/the-standard-query-parser.html
     pub fn query(&mut self, query: String) -> &mut Self {
@@ -965,6 +971,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("q".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `def_type`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#deftype-parameter
     pub fn def_type(&mut self, def_type: String) -> &mut Self {
@@ -972,6 +983,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("defType".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `sort`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#sort-parameter
     pub fn sort(&mut self, sort: String) -> &mut Self {
@@ -979,18 +995,33 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("sort".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `start`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#start-parameter
     pub fn start(&mut self, start: usize) -> &mut Self {
         self.set("start".into(), start)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `rows`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#rows-parameter
     pub fn rows(&mut self, rows: usize) -> &mut Self {
         self.set("rows".into(), rows)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `fq`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#fq-filter-query-parameter
     pub fn fq(&mut self, fq: String) -> &mut Self {
@@ -998,6 +1029,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("fq".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `fl`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#fl-field-list-parameter
     pub fn fl(&mut self, fl: String) -> &mut Self {
@@ -1005,6 +1041,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("fl".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `debug`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#debug-parameter
     pub fn debug(&mut self, debug: String) -> &mut Self {
@@ -1012,6 +1053,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("debug".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `explain_other`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#explainother-parameter
     pub fn explain_other(&mut self, explain_other: String) -> &mut Self {
@@ -1019,24 +1065,44 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("explainOther".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `time_allowed`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#timeallowed-parameter
     pub fn time_allowed(&mut self, time_allowed: usize) -> &mut Self {
         self.set("timeAllowed".into(), time_allowed)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `segment_terminate_early`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#segmentterminateearly-parameter
     pub fn segment_terminate_early(&mut self, segment_terminate_early: bool) -> &mut Self {
         self.set("segmentTerminateEarly".into(), segment_terminate_early)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `omit_header`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#omitheader-parameter
     pub fn omit_header(&mut self, omit_header: bool) -> &mut Self {
         self.set("omitHeader".into(), omit_header)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `wt`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#wt-parameter
     pub fn wt(&mut self, wt: String) -> &mut Self {
@@ -1044,12 +1110,22 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("wt".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `cache`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#cache-parameter
     pub fn cache(&mut self, cache: bool) -> &mut Self {
         self.set("cache".into(), cache)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `log_params_list`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#logparamslist-parameter
     pub fn log_params_list(&mut self, log_params_list: String) -> &mut Self {
@@ -1057,6 +1133,11 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("logParamsList".into(), encoded)
     }
 
+    ///
+    ///
+    /// # Arguments
+    /// * `echo_params`-
+    ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/common-query-parameters.html#echoparams-parameter
     pub fn echo_params(&mut self, echo_params: String) -> &mut Self {
@@ -1070,7 +1151,6 @@ impl<'a, 'b> Query<'a, 'b> {
             path = format!("{}{}={}&", path, k, v);
         }
         path.remove(path.len() - 1);
-        println!("Query: {}", path);
         path
     }
 
