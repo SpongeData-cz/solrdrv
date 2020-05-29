@@ -490,7 +490,7 @@ impl FieldBuilder {
     /// # Example
     /// ```
     /// let name = FieldBuilder::new("name".into())
-    ///     .set("type".into(), "string".into_string())
+    ///     .set("type".into(), "string".into())
     ///     .set("omitNorms".into(), true)
     ///     .set("stored".into(), true)
     ///     .build().unwrap();
