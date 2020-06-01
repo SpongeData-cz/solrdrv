@@ -427,8 +427,6 @@ impl<'a> CollectionBuilder<'a> {
         collection_builder
     }
 
-    // TODO: Add missing CollectionBuilder API fields!
-
     /// Sets a collection parameter.
     ///
     /// # Arguments
@@ -444,7 +442,18 @@ impl<'a> CollectionBuilder<'a> {
         self
     }
 
-    /// Set the number of shards to be created as part of the collection.
+    /// Sets the router name that will be used.
+    ///
+    /// # Arguments
+    /// * `router_name` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn router_name(&mut self, router_name: String) -> &mut Self {
+        self.set("router.name".into(), router_name)
+    }
+
+    /// Sets the number of shards to be created as part of the collection.
     ///
     /// # Arguments
     /// * `num_shards` -
@@ -455,7 +464,62 @@ impl<'a> CollectionBuilder<'a> {
         self.set("numShards".into(), num_shards)
     }
 
-    /// Set the maximum number of shards per node.
+    /// Sets shard names.
+    ///
+    /// # Arguments
+    /// * `shards` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn shards(&mut self, shards: String) -> &mut Self {
+        self.set("shards".into(), shards)
+    }
+
+    /// Sets the number of replicas that will be created for each shard.
+    ///
+    /// # Arguments
+    /// * `replication_factor` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn replication_factor(&mut self, replication_factor: usize) -> &mut Self {
+        self.set("replicationFactor".into(), replication_factor)
+    }
+
+    /// Sets the number of NRT replicas to create for the collection.
+    ///
+    /// # Arguments
+    /// * `nrt_replicas` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn nrt_replicas(&mut self, nrt_replicas: usize) -> &mut Self {
+        self.set("nrtReplicas".into(), nrt_replicas)
+    }
+
+    /// Sets the number of TLOG replicas to create for the collection.
+    ///
+    /// # Arguments
+    /// * `tlog_replicas` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn tlog_replicas(&mut self, tlog_replicas: usize) -> &mut Self {
+        self.set("tlogReplicas".into(), tlog_replicas)
+    }
+
+    /// Sets the number of PULL replicas to create for the collection.
+    ///
+    /// # Arguments
+    /// * `pull_replicas` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn pull_replicas(&mut self, pull_replicas: usize) -> &mut Self {
+        self.set("pullReplicas".into(), pull_replicas)
+    }
+
+    /// Sets the maximum number of shards per node.
     ///
     /// # Arguments
     /// * `max_shards_per_node` -
@@ -466,7 +530,42 @@ impl<'a> CollectionBuilder<'a> {
         self.set("maxShardsPerNode".into(), max_shards_per_node)
     }
 
-    /// Set the name of the field used to compute a hash.
+    /// Defines the nodes to spread the new collection across.
+    ///
+    /// # Arguments
+    /// * `create_node_set` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn create_node_set(&mut self, create_node_set: String) -> &mut Self {
+        self.set("createNodeSet".into(), create_node_set)
+    }
+
+    /// Controls whether or not the shard-replicas created for this collection will be assigned to
+    /// the nodes specified by the `create_node_set` in a sequential manner, or if the list of nodes
+    /// should be shuffled prior to creating individual replicas.
+    ///
+    /// # Arguments
+    /// * `create_node_set_shuffle` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn create_node_set_shuffle(&mut self, create_node_set_shuffle: bool) -> &mut Self {
+        self.set("createNodeSet.shuffle".into(), create_node_set_shuffle)
+    }
+
+    /// Defines the name of the configuration to use for this collection.
+    ///
+    /// # Arguments
+    /// * `collection_config_name` -
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn collection_config_name(&mut self, collection_config_name: bool) -> &mut Self {
+        self.set("collection.configName".into(), collection_config_name)
+    }
+
+    /// Sets the name of the field used to compute a hash.
     ///
     /// # Arguments
     /// * `router_field`-
@@ -475,6 +574,84 @@ impl<'a> CollectionBuilder<'a> {
     /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
     pub fn router_field(&mut self, router_field: String) -> &mut Self {
         self.set("routerField".into(), router_field)
+    }
+
+    /// When set to `true`, enables automatic addition of replicas when the number of active replicas
+    /// falls below the value set for `replication_factor`.
+    ///
+    /// # Arguments
+    /// * `auto_add_replicas`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn auto_add_replicas(&mut self, auto_add_replicas: bool) -> &mut Self {
+        self.set("autoAddReplicas".into(), auto_add_replicas)
+    }
+
+    /// Defines replica placement rule.
+    ///
+    /// # Arguments
+    /// * `rule`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn rule(&mut self, rule: String) -> &mut Self {
+        self.set("rule".into(), rule)
+    }
+
+    /// Defines details of the snitch provider.
+    ///
+    /// # Arguments
+    /// * `snitch`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn snitch(&mut self, snitch: String) -> &mut Self {
+        self.set("snitch".into(), snitch)
+    }
+
+    /// Defines name of the collection-level policy.
+    ///
+    /// # Arguments
+    /// * `snitch`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn policy(&mut self, snitch: String) -> &mut Self {
+        self.set("snitch".into(), snitch)
+    }
+
+    /// If `true`, the request will complete only when all affected replicas become active.
+    ///
+    /// # Arguments
+    /// * `wait_for_final_state`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn wait_for_final_state(&mut self, wait_for_final_state: String) -> &mut Self {
+        self.set("waitForFinalState".into(), wait_for_final_state)
+    }
+
+    /// The name of the collection with which all replicas of this collection must be co-located.
+    ///
+    /// # Arguments
+    /// * `with_collection`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn with_collection(&mut self, with_collection: String) -> &mut Self {
+        self.set("withCollection".into(), with_collection)
+    }
+
+    /// Defines an alias for the collection.
+    ///
+    /// # Arguments
+    /// * `alias`-
+    ///
+    /// # See
+    /// https://lucene.apache.org/solr/guide/8_5/collection-management.html#create
+    pub fn alias(&mut self, alias: String) -> &mut Self {
+        self.set("alias".into(), alias)
     }
 
     fn build_path(&self) -> String {
