@@ -63,6 +63,7 @@ use std::vec::Vec;
 use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
+// use std::error::Error;
 // use serde::{Serialize, Deserialize};
 
 const MAX_CHAR_VAL: u32 = std::char::MAX as u32;
@@ -156,6 +157,10 @@ impl Solr {
     }
 
     async fn parse_fetch_result(&self, res: reqwest::Response) -> Result<serde_json::Value, SolrError> {
+        let status_code = res.status();
+        if !status_code.is_success() {
+            return Err(SolrError);
+        }
         let text: String = res.text().await?;
         let json: Value = match serde_json::from_str(&text) {
             Ok(r) => r,
@@ -163,8 +168,6 @@ impl Solr {
         };
         let err = json.get("error");
         if err.is_some() {
-            let err = err.unwrap();
-            println!("{:?}", err);
             return Err(SolrError);
         }
         Ok(json)
@@ -189,7 +192,6 @@ impl Solr {
     /// otherwise returns the fetched result.
     pub async fn get(&self, path: &String) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
-        println!("GET: {}", url);
         let res = reqwest::get(&url).await?;
         self.parse_fetch_result(res).await
     }
@@ -217,9 +219,8 @@ impl Solr {
     /// otherwise returns the fetched result.
     pub async fn post(&self, path: &String, data: &serde_json::Value) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
-        println!("POST: {}", url);
         let client = reqwest::Client::new();
-        let res = client.post(&self.format_url(&path)).json(&data).send().await?;
+        let res = client.post(&url).json(&data).send().await?;
         self.parse_fetch_result(res).await
     }
 
@@ -1196,6 +1197,15 @@ impl<'a, 'b> Query<'a, 'b> {
     pub fn query(&mut self, query: String) -> &mut Self {
         let encoded = self.collection.client.url_encode(&query);
         self.set("q".into(), encoded)
+    }
+
+    /// Sets a query string from a JSON-encoded query.
+    ///
+    /// # Arguments
+    /// * `json` -
+    pub fn query_json(&mut self, json: serde_json::Value) -> &mut Self {
+        // TODO: Implement!
+        self
     }
 
     /// Defines the query parsers.
