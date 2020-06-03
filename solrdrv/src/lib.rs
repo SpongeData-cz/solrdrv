@@ -192,6 +192,7 @@ impl Solr {
     /// otherwise returns the fetched result.
     pub async fn get(&self, path: &String) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
+        println!("GET: {}", url);
         let res = reqwest::get(&url).await?;
         self.parse_fetch_result(res).await
     }
@@ -219,6 +220,7 @@ impl Solr {
     /// otherwise returns the fetched result.
     pub async fn post(&self, path: &String, data: &serde_json::Value) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
+        println!("POST: {}", url);
         let client = reqwest::Client::new();
         let res = client.post(&url).json(&data).send().await?;
         self.parse_fetch_result(res).await
@@ -415,14 +417,14 @@ impl<'a> Collection<'a> {
 /// A builder for collections
 pub struct CollectionBuilder<'a> {
     client: &'a Solr,
-    params: HashMap<String, String>
+    params: HashMap<String, String>,
 }
 
 impl<'a> CollectionBuilder<'a> {
     fn new<'b: 'a>(client: &'b Solr, name: String) -> CollectionBuilder<'a> {
         let mut collection_builder = CollectionBuilder {
             client: &client,
-            params: HashMap::new()
+            params: HashMap::new(),
         };
         collection_builder.set("name".into(), name);
         collection_builder
@@ -1199,13 +1201,97 @@ impl<'a, 'b> Query<'a, 'b> {
         self.set("q".into(), encoded)
     }
 
+    fn query_json_impl(&mut self, json: &serde_json::Value) -> Result<String, SolrError> {
+        let mut str = String::new();
+
+        let field = json.get("field");
+        if field.is_some() {
+            let field = field.unwrap().as_str().unwrap();
+            let value = json.get("value");
+            if value.is_some() {
+                let value = value.unwrap();
+                str = format!("{}{}:{}", str, field, value);
+            } else {
+                // ERROR: Missing field value!
+                return Err(SolrError);
+            }
+        } else {
+            let mut op_name = "and";
+            let mut op = json.get(op_name);
+            if op.is_none() {
+                op_name = "or";
+                op = json.get(op_name);
+            }
+            if op.is_none() {
+                op_name = "neg";
+                op = json.get(op_name);
+            }
+
+            if op.is_some() {
+                let op = op.unwrap();
+                if op_name == "neg" {
+                    str = format!("{}!{}", str, self.query_json_impl(op).unwrap());
+                } else {
+                    let vec = op.as_array().unwrap().iter()
+                        .map(|v| self.query_json_impl(v).unwrap()).collect::<Vec<_>>();
+                    str = format!("{}({})", str, vec.join(if op_name == "and" { " AND " } else { " OR " }));
+                }
+            } else {
+                // ERROR: Invalid syntax! Expected an operation or a field.
+                return Err(SolrError);
+            }
+        }
+
+        Ok(str)
+    }
+
     /// Sets a query string from a JSON-encoded query.
     ///
     /// # Arguments
     /// * `json` -
-    pub fn query_json(&mut self, json: serde_json::Value) -> &mut Self {
-        // TODO: Implement!
-        self
+    ///
+    /// # Syntax
+    /// ```
+    /// // Field match
+    /// { "field": "field_name",
+    ///   "value": <field_value> }
+    ///
+    /// // Logical `and`
+    /// { "and": [ ... ] }
+    ///
+    /// // Logical `or`
+    /// { "or": [ ... ] }
+    ///
+    /// // Negation
+    /// { "neg": { ... } }
+    /// ```
+    ///
+    /// # Example
+    /// Following is an example of how a query `(!(name:"Some" AND age:19) OR age:21)` would be
+    /// encoded in JSON.
+    /// ```
+    /// let query = json!({
+    ///     "or": [
+    ///         {
+    ///             "neg": {
+    ///                 "and": [
+    ///                     { "field": "name", "value": "Some" },
+    ///                     { "field": "age", "value": 19 },
+    ///                 ]
+    ///             }
+    ///         },
+    ///         { "field": "age", "value": 21 }
+    ///     ]
+    /// });
+    /// ```
+    pub fn query_json(&mut self, json: serde_json::Value) -> Result<&mut Self, SolrError> {
+        let query = match self.query_json_impl(&json) {
+            Ok(q) => q,
+            Err(e) => return Err(e)
+        };
+        println!("Query: {}", query);
+        let encoded = self.collection.client.url_encode(&query);
+        Ok(self.set("q".into(), encoded))
     }
 
     /// Defines the query parsers.
