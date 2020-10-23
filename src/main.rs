@@ -13,8 +13,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match solr.collections().get("users".into()).await {
         Ok(col) => {
-            let schema = col.schema().get().await?;
-            println!("Schema: {:?}", schema);
+            col.schema()
+                .delete_field("name")
+                .delete_field("age")
+                .commit().await?;
             solr.collections().delete(&col.name).await?;
         },
         Err(_) => {}
@@ -28,9 +30,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .commit().await?;
 
     users.schema()
-    //     .add_field(FieldBuilder::string("name".into()))
-    //     .add_field(FieldBuilder::numeric("age".into()))
-        .add_field(FieldBuilder::string("some_shit".into()))
+        .add_field(FieldBuilder::string("name".into()))
+        .add_field(FieldBuilder::numeric("age".into()))
         .commit().await?;
 
     users.add(json!([
@@ -49,16 +50,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let users_found = users.search()
-        .query("(name:Some AND age:19) OR age:21".into())
-        // .from_json(json!(...)) // TODO: Add JSON -> query string method!
+        .query("(name:Some AND age:19) OR age:21")
+        .query_json(json!({
+            "or": [
+                {
+                    "and": [
+                        { "field": "name", "value": "Some" },
+                        { "field": "age", "value": 19 }
+                    ]
+                },
+                { "field": "age", "value": 21 }
+            ]
+        })).unwrap()
         .sort("name asc".into())
         .fl("name,age".into())
         .commit().await?;
     println!("{:#?}", users_found);
-
-    users.schema()
-        .delete_field("some_shit".into())
-        .commit().await?;
 
     Ok(())
 }
