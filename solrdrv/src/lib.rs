@@ -113,7 +113,7 @@ impl Solr {
     ///
     /// # Example
     /// ```
-    /// let client = Solr.client("http".into(), "localhost".into(), 8983);
+    /// let client = solrdrv::Solr.client("http".into(), "localhost".into(), 8983);
     /// ```
     pub fn client(protocol: String, host: String, port: u16) -> Solr {
         Solr { protocol, host, port }
@@ -132,7 +132,7 @@ impl Solr {
     ///
     /// # Source
     /// https://rosettacode.org/wiki/URL_encoding#Rust
-    pub fn url_encode(&self, string: &String) -> String {
+    pub fn url_encode(&self, string: &str) -> String {
         let mut buff = [0; 4];
 
         string.chars()
@@ -152,7 +152,7 @@ impl Solr {
     ///
     /// # Arguments
     /// * `path` -
-    pub fn format_url(&self, path: &String) -> String {
+    pub fn format_url(&self, path: &str) -> String {
         format!("{}://{}:{}/solr/{}", self.protocol, self.host, self.port, path)
     }
 
@@ -191,7 +191,7 @@ impl Solr {
     /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
     /// otherwise returns the fetched result.
     pub async fn get(&self, path: &String) -> Result<serde_json::Value, SolrError> {
-        let url = self.format_url(path);
+        let url = self.format_url(&path);
         println!("GET: {}", url);
         let res = reqwest::get(&url).await?;
         self.parse_fetch_result(res).await
@@ -218,7 +218,7 @@ impl Solr {
     /// # Return
     /// If the fetch fails or the result contains an "error" key, then returns a `SolrError`,
     /// otherwise returns the fetched result.
-    pub async fn post(&self, path: &String, data: &serde_json::Value) -> Result<serde_json::Value, SolrError> {
+    pub async fn post(&self, path: &str, data: &serde_json::Value) -> Result<serde_json::Value, SolrError> {
         let url = self.format_url(path);
         println!("POST: {}", url);
         let client = reqwest::Client::new();
@@ -227,7 +227,7 @@ impl Solr {
     }
 
     pub async fn get_system_info(&self) -> Result<serde_json::Value, SolrError> {
-        let path = String::from("admin/info/system?wt=json");
+        let path = "admin/info/system?wt=json".to_string();
         match self.get(&path).await {
             Ok(r) => Ok(r),
             Err(_) => Err(SolrError),
@@ -264,7 +264,7 @@ impl<'a> CollectionsAPI<'a> {
 
     /// Returns a list of existing collections.
     pub async fn list(&self) -> Result<Vec<Collection<'_>>, SolrError> {
-        let path = String::from("admin/collections?action=LIST");
+        let path = "admin/collections?action=LIST".to_string();
         let res = match self.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
@@ -289,7 +289,7 @@ impl<'a> CollectionsAPI<'a> {
     /// # Arguments
     /// * `name` - The name of the collection to retrieve.
     pub async fn get(&self, name: String) -> Result<Collection<'_>, SolrError> {
-        let path = String::from(format!("admin/collections?action=LIST"));
+        let path = "admin/collections?action=LIST".to_string();
         let res = match self.client.get(&path).await {
             Ok(r) => r,
             Err(_) => return Err(SolrError),
@@ -306,8 +306,8 @@ impl<'a> CollectionsAPI<'a> {
     ///
     /// # Arguments
     /// * `name` - The name of the collection to delete.
-    pub async fn delete(&self, name: &String) -> Result<(), SolrError> {
-        let path = String::from(format!("admin/collections?action=DELETE&name={}", name));
+    pub async fn delete(&self, name: &str) -> Result<(), SolrError> {
+        let path = format!("admin/collections?action=DELETE&name={}", name).to_string();
         match self.client.get(&path).await {
             Ok(_) => Ok(()),
             Err(_) => Err(SolrError)
@@ -723,7 +723,7 @@ impl FieldBuilder {
     ///
     /// # Example
     /// ```
-    /// let name = FieldBuilder::new("name".into())
+    /// let name = solrdrv::FieldBuilder::new("name".into())
     ///     .set("type".into(), "string".into())
     ///     .set("omitNorms".into(), true)
     ///     .set("stored".into(), true)
@@ -1028,7 +1028,7 @@ impl FieldBuilder {
     ///
     /// # Example
     /// ```
-    /// let name = FieldBuilder::new("name".into())
+    /// let name = solrdrv::FieldBuilder::new("name".into())
     ///     .typename("string".into())
     ///     .omit_norms(true)
     ///     .stored(true)
@@ -1078,8 +1078,8 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
     /// changes.
     /// ```
     /// users.schema()
-    ///     .add_field(FieldBuilder::string("name".into()))
-    ///     .add_field(FieldBuilder::numeric("age".into()))
+    ///     .add_field(solrdrv::FieldBuilder::string("name".into()))
+    ///     .add_field(solrdrv::FieldBuilder::numeric("age".into()))
     ///     .commit().await?;
     /// ```
     ///
@@ -1098,7 +1098,7 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
     ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/schema-api.html#delete-a-field
-    pub fn delete_field(&mut self, name: String) -> &mut Self {
+    pub fn delete_field(&mut self, name: &str) -> &mut Self {
         self.fields_to_delete.push(json!({ "name": name }));
         self
     }
@@ -1123,7 +1123,7 @@ impl<'a, 'b> SchemaAPI<'a, 'b> {
     /// commits the changes.
     /// ```
     /// users.scheme()
-    ///     .add_field(FieldBuilder::string("name".into()))
+    ///     .add_field(solrdrv::FieldBuilder::string("name".into()))
     ///     .delete_field("age".into())
     ///     .commit().await?;
     /// ```
@@ -1196,18 +1196,19 @@ impl<'a, 'b> Query<'a, 'b> {
     ///
     /// # See
     /// https://lucene.apache.org/solr/guide/8_5/the-standard-query-parser.html
-    pub fn query(&mut self, query: String) -> &mut Self {
+    pub fn query(&mut self, query: &str) -> &mut Self {
         let encoded = self.collection.client.url_encode(&query);
         self.set("q".into(), encoded)
     }
 
     fn query_json_impl(&mut self, json: &serde_json::Value) -> Result<String, SolrError> {
         let mut str = String::new();
-
         let field = json.get("field");
+
         if field.is_some() {
             let field = field.unwrap().as_str().unwrap();
             let value = json.get("value");
+
             if value.is_some() {
                 let value = value.unwrap();
                 str = format!("{}{}:{}", str, field, value);
@@ -1218,6 +1219,7 @@ impl<'a, 'b> Query<'a, 'b> {
         } else {
             let mut op_name = "and";
             let mut op = json.get(op_name);
+
             if op.is_none() {
                 op_name = "or";
                 op = json.get(op_name);
@@ -1229,6 +1231,7 @@ impl<'a, 'b> Query<'a, 'b> {
 
             if op.is_some() {
                 let op = op.unwrap();
+
                 if op_name == "neg" {
                     str = format!("{}!{}", str, self.query_json_impl(op).unwrap());
                 } else {
@@ -1245,24 +1248,30 @@ impl<'a, 'b> Query<'a, 'b> {
         Ok(str)
     }
 
-    /// Sets a query string from a JSON-encoded query.
+    /// Sets the query string from a JSON-encoded query.
     ///
     /// # Arguments
     /// * `json` -
     ///
     /// # Syntax
-    /// ```
-    /// // Field match
+    /// Field match
+    /// ```json
     /// { "field": "field_name",
     ///   "value": <field_value> }
+    /// ```
     ///
-    /// // Logical `and`
+    /// Logical `and`
+    /// ```json
     /// { "and": [ ... ] }
+    /// ```
     ///
-    /// // Logical `or`
+    /// Logical `or`
+    /// ```json
     /// { "or": [ ... ] }
+    /// ```
     ///
-    /// // Negation
+    /// Negation
+    /// ```json
     /// { "neg": { ... } }
     /// ```
     ///
@@ -1289,9 +1298,8 @@ impl<'a, 'b> Query<'a, 'b> {
             Ok(q) => q,
             Err(e) => return Err(e)
         };
-        println!("Query: {}", query);
-        let encoded = self.collection.client.url_encode(&query);
-        Ok(self.set("q".into(), encoded))
+        println!("Query from JSON: {}", query);
+        Ok(self.query(query.as_str()))
     }
 
     /// Defines the query parsers.
