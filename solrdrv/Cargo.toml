@@ -1,7 +1,7 @@
 [package]
 name = "solrdrv"
 version = "0.1.0"
-authors = ["Patrik Kraif <kraifpatrik@gmail.com>"]
+authors = ["SpongeData <info@spongedata.cz> (https://spongedata.cz/)"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
